@@ -18,7 +18,7 @@ class OFAMobileNetV3(MobileNetV3):
     def __init__(self, n_classes=1000, bn_param=(0.1, 1e-5), dropout_rate=0.1, base_stage_width=None,
                  width_mult_list=1.0, ks_list=3, expand_ratio_list=6, depth_list=4):
 
-        self.width_mult_list = int2list(width_mult_list, 1)
+        self.width_mult_list = int2list(width_mult_list, 1)  # 이게 output width 조절하는 변수
         self.ks_list = int2list(ks_list, 1)
         self.expand_ratio_list = int2list(expand_ratio_list, 1)
         self.depth_list = int2list(depth_list, 1)

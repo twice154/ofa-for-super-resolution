@@ -37,7 +37,7 @@ class DynamicSeparableConv2d(nn.Module):
                 ks_small = self._ks_set[i]
                 ks_larger = self._ks_set[i + 1]
                 param_name = '%dto%d' % (ks_larger, ks_small)
-                scale_params['%s_matrix' % param_name] = Parameter(torch.eye(ks_small ** 2))
+                scale_params['%s_matrix' % param_name] = Parameter(torch.eye(ks_small ** 2))  # Convolution 처럼 Transform Matrix 연산하는듯
             for name, param in scale_params.items():
                 self.register_parameter(name, param)
 

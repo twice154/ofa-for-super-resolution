@@ -217,7 +217,7 @@ def ofa_net(net_id, pretrained=True):
     from ofa.elastic_nn.modules.dynamic_op import DynamicSeparableConv2d
     from ofa.elastic_nn.networks import OFAMobileNetV3, OFAProxylessNASNets
 
-    DynamicSeparableConv2d.KERNEL_TRANSFORM_MODE = 1
+    DynamicSeparableConv2d.KERNEL_TRANSFORM_MODE = 1  # class static 변수로 OFA 초기화할때 Kernel Transform 사용하기 위해서 class initialize 하는듯
     if net_id == 'ofa_proxyless_d234_e346_k357_w1.3':
         net = OFAProxylessNASNets(
             dropout_rate=0, width_mult_list=1.3, ks_list=[3, 5, 7], expand_ratio_list=[3, 4, 6], depth_list=[2, 3, 4],
