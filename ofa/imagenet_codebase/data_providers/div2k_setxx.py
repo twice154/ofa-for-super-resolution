@@ -14,8 +14,8 @@ import torchvision.datasets as datasets
 from ofa.imagenet_codebase.data_providers.base_provider import DataProvider, MyRandomResizedCrop, MyDistributedSampler
 
 
-class Cifar10DataProvider(DataProvider):
-    DEFAULT_PATH = '/SSD/cifar10'
+class Div2K_SetXXDataProvider(DataProvider):
+    DEFAULT_PATH = '/SSD/div2k_setxx'
     
     def __init__(self, save_path=None, train_batch_size=256, test_batch_size=512, valid_size=None, n_worker=32,
                  resize_scale=0.08, distort_color=None, image_size=32,
@@ -66,23 +66,23 @@ class Cifar10DataProvider(DataProvider):
             
             self.train = train_loader_class(
                 train_dataset, batch_size=train_batch_size, sampler=train_sampler,
-                num_workers=n_worker, pin_memory=True,
+                num_workers=n_worker, pin_memory=True, drop_last=True,
             )
             self.valid = torch.utils.data.DataLoader(
                 valid_dataset, batch_size=test_batch_size, sampler=valid_sampler,
-                num_workers=n_worker, pin_memory=True,
+                num_workers=n_worker, pin_memory=True, drop_last=True,
             )
         else:
             if num_replicas is not None:
                 train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas, rank)
                 self.train = train_loader_class(
                     train_dataset, batch_size=train_batch_size, sampler=train_sampler,
-                    num_workers=n_worker, pin_memory=True
+                    num_workers=n_worker, pin_memory=True, drop_last=True,
                 )
             else:
                 self.train = train_loader_class(
                     train_dataset, batch_size=train_batch_size, shuffle=True,
-                    num_workers=n_worker, pin_memory=True,
+                    num_workers=n_worker, pin_memory=True, drop_last=True,
                 )
             self.valid = None
         
@@ -90,11 +90,11 @@ class Cifar10DataProvider(DataProvider):
         if num_replicas is not None:
             test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset, num_replicas, rank)
             self.test = torch.utils.data.DataLoader(
-                test_dataset, batch_size=test_batch_size, sampler=test_sampler, num_workers=n_worker, pin_memory=True,
+                test_dataset, batch_size=test_batch_size, sampler=test_sampler, num_workers=n_worker, pin_memory=True, drop_last=True,
             )
         else:
             self.test = torch.utils.data.DataLoader(
-                test_dataset, batch_size=test_batch_size, shuffle=True, num_workers=n_worker, pin_memory=True,
+                test_dataset, batch_size=test_batch_size, shuffle=True, num_workers=n_worker, pin_memory=True, drop_last=True,
             )
         
         if self.valid is None:
@@ -102,7 +102,7 @@ class Cifar10DataProvider(DataProvider):
     
     @staticmethod
     def name():
-        return 'cifar10'
+        return 'div2k_setxx'
     
     @property
     def data_shape(self):
@@ -110,7 +110,7 @@ class Cifar10DataProvider(DataProvider):
     
     @property
     def n_classes(self):
-        return 10
+        return 1
     
     @property
     def save_path(self):
@@ -123,11 +123,11 @@ class Cifar10DataProvider(DataProvider):
         raise ValueError('unable to download %s' % self.name())
     
     def train_dataset(self, _transforms):
-        dataset = datasets.ImageFolder(self.train_path, _transforms)
+        dataset = Div2K_SetXXDataset(self.train_path, _transforms)
         return dataset
     
     def test_dataset(self, _transforms):
-        dataset = datasets.ImageFolder(self.valid_path, _transforms)
+        dataset = Div2K_SetXXDataset(self.valid_path, _transforms)
         return dataset
     
     @property
@@ -165,7 +165,9 @@ class Cifar10DataProvider(DataProvider):
 
         train_transforms = [
             # resize_transform_class(image_size, scale=(self.resize_scale, 1.0)),
+            transforms.RandomCrop(image_size),
             transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(degrees=(-90, 90)),
         ]
         if color_transform is not None:
             train_transforms.append(color_transform)
@@ -221,3 +223,73 @@ class Cifar10DataProvider(DataProvider):
             for images, labels in sub_data_loader:
                 self.__dict__['sub_train_%d' % self.active_img_size].append((images, labels))
         return self.__dict__['sub_train_%d' % self.active_img_size]
+
+
+################################################## SR 데이터셋. 기존 코드는 ImageFolder 사용해서 별도로 작성할 필요가 있었음
+# import os
+from PIL import Image
+# import torchvision.transforms as transforms
+
+IMG_EXTENSIONS = [
+    '.jpg', '.JPG', '.jpeg', '.JPEG',
+    '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
+]
+
+def is_image_file(filename):
+    return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
+
+def get_image_paths(dir):
+    assert os.path.isdir(dir), '%s is not a valid directory' % dir
+    images = []
+    for root, _, fnames in sorted(os.walk(dir)):
+        for fname in fnames:
+            if is_image_file(fname):
+                path = os.path.join(root, fname)
+                images.append(path)
+    assert images, '%s has no valid image file' % dir
+    return images
+
+def get_image_paths_recursive(dir, images):
+    assert os.path.isdir(dir), '%s is not a valid directory' % dir
+    for root, subdirs, fnames in sorted(os.walk(dir)):
+        for fname in fnames:
+            if is_image_file(fname):
+                fpath = os.path.join(root, fname)
+                images.append(fpath)
+        for subdir in subdirs:
+            subdir = os.path.join(root, subdir)
+            get_image_paths_recursive(subdir, images)
+    return images
+
+
+# import numpy as np
+# import torch
+# import torch.utils.data as data
+# import data.transforms as transforms
+
+class Div2K_SetXXDataset(torch.utils.data.Dataset):
+    def __init__(self, root_dir, transform=None):
+        """
+        Args:
+            root_dir (string): 이미지가 존재하는 디렉토리 경로
+            transform (callable, optional): 샘플에 적용될 Optional transform
+        """
+        self.root_dir = root_dir
+        self.transform = transform
+
+        self.paths = []
+        self.paths = get_image_paths_recursive(self.root_dir, self.paths)
+        self.size = len(self.paths)
+
+    def __len__(self):
+        return self.size
+
+    def __getitem__(self, index):
+        path = self.paths[index]
+        H_tensor = self.transform(Image.open(path).convert('RGB'))
+        # L_img = self.transform_L(H_img)
+        # H_tensor = self.to_tensor(H_img)
+        # L_tensor = self.to_tensor(L_img)
+        out_dict = {'image': H_tensor}
+
+        return out_dict

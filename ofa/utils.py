@@ -3,6 +3,7 @@
 # International Conference on Learning Representations (ICLR), 2020.
 
 import math
+import numpy as np
 import os
 import sys
 from filelock import FileLock
@@ -17,6 +18,20 @@ except ImportError:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+
+"""
+img1, img2 should be in numpy format with type uint8.
+"""
+
+def psnr(img1, img2):
+    assert (img1.dtype == img2.dtype == np.uint8)
+    img1 = img1.astype(np.float64)
+    img2 = img2.astype(np.float64)
+    mse = np.mean((img1 - img2) ** 2)
+    if mse == 0:
+        return float('inf')
+    return 20 * math.log10(255.0 / math.sqrt(mse))
 
 
 def accuracy(output, target, topk=(1,)):
@@ -224,7 +239,7 @@ def make_divisible(v, divisor, min_val=None):
     return new_v
 
 
-def build_activation(act_func, inplace=True):
+def build_activation(act_func, inplace=True, upscale_factor=2):
     if act_func == 'relu':
         return nn.ReLU(inplace=inplace)
     elif act_func == 'relu6':
@@ -237,10 +252,38 @@ def build_activation(act_func, inplace=True):
         return Hswish(inplace=inplace)
     elif act_func == 'h_sigmoid':
         return Hsigmoid(inplace=inplace)
+    elif act_func == 'prelu':
+        return nn.PReLU(inplace=inplace)
+    elif act_func == 'lrelu':
+        return nn.LeakyReLU(0.1, inplace=inplace)
+    elif act_func == 'pixelshuffle+relu':
+        return nn.Sequential(
+            build_pixelshuffle(upscale_factor=upscale_factor),
+            nn.ReLU(inplace=inplace)
+        )
+    elif act_func == 'pixelshuffle+relu6':
+        return nn.Sequential(
+            build_pixelshuffle(upscale_factor=upscale_factor),
+            nn.ReLU6(inplace=inplace)
+        )
+    elif act_func == 'pixelshuffle+prelu':
+        return nn.Sequential(
+            build_pixelshuffle(upscale_factor=upscale_factor),
+            nn.PReLU(inplace=inplace)
+        )
+    elif act_func == 'pixelshuffle+lrelu':
+        return nn.Sequential(
+            build_pixelshuffle(upscale_factor=upscale_factor),
+            nn.LeakyReLU(0.1, inplace=inplace)
+        )
     elif act_func is None:
         return None
     else:
         raise ValueError('do not support: %s' % act_func)
+
+
+def build_pixelshuffle(upscale_factor=2):
+    return nn.PixelShuffle(upscale_factor=upscale_factor)
 
 
 class ShuffleLayer(nn.Module):

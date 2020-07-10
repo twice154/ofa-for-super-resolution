@@ -171,7 +171,7 @@ class ImagenetDataProvider(DataProvider):
             train_transforms.append(color_transform)
         train_transforms += [
             transforms.ToTensor(),
-            self.normalize,
+            # self.normalize,
         ]
 
         train_transforms = transforms.Compose(train_transforms)
@@ -184,7 +184,7 @@ class ImagenetDataProvider(DataProvider):
             transforms.Resize(int(math.ceil(image_size / 0.875))),
             transforms.CenterCrop(image_size),
             transforms.ToTensor(),
-            self.normalize,
+            # self.normalize,
         ])
 
     def assign_active_img_size(self, new_img_size):

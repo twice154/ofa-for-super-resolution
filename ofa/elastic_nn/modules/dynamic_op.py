@@ -48,7 +48,7 @@ class DynamicSeparableConv2d(nn.Module):
         max_kernel_size = max(self.kernel_size_list)
         
         start, end = sub_filter_start_end(max_kernel_size, kernel_size)
-        filters = self.conv.weight[:out_channel, :in_channel, start:end, start:end]
+        filters = self.conv.weight[:out_channel, :in_channel, start:end, start:end]  # conv weight 구조에 대해서 참고할 수 있는 부분
         if self.KERNEL_TRANSFORM_MODE is not None and kernel_size < max_kernel_size:
             start_filter = self.conv.weight[:out_channel, :in_channel, :, :]  # start with max kernel
             for i in range(len(self._ks_set) - 1, 0, -1):

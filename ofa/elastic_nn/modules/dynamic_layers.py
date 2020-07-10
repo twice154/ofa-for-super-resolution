@@ -56,7 +56,7 @@ class DynamicMBConvLayer(MyModule):
         self.active_out_channel = max(self.out_channel_list)
     
     def forward(self, x):
-        in_channel = x.size(1)
+        in_channel = x.size(1)  # Batch, Channel, Height, Width
         
         if self.inverted_bottleneck is not None:
             self.inverted_bottleneck.conv.active_out_channel = \
