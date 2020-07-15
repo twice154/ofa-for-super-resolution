@@ -32,17 +32,29 @@ class DynamicMBConvLayer(MyModule):
         if max(self.expand_ratio_list) == 1:
             self.inverted_bottleneck = None
         else:
-            self.inverted_bottleneck = nn.Sequential(OrderedDict([
-                ('conv', DynamicPointConv2d(max(self.in_channel_list), max_middle_channel)),
-                ('bn', DynamicBatchNorm2d(max_middle_channel)),
-                ('act', build_activation(self.act_func, inplace=True)),
-            ]))
+            if build_activation(self.act_func, inplace=True) is None:
+                self.inverted_bottleneck = nn.Sequential(OrderedDict([
+                    ('conv', DynamicPointConv2d(max(self.in_channel_list), max_middle_channel)),
+                    ('bn', DynamicBatchNorm2d(max_middle_channel)),
+                ]))
+            else:
+                self.inverted_bottleneck = nn.Sequential(OrderedDict([
+                    ('conv', DynamicPointConv2d(max(self.in_channel_list), max_middle_channel)),
+                    ('bn', DynamicBatchNorm2d(max_middle_channel)),
+                    ('act', build_activation(self.act_func, inplace=True)),
+                ]))
         
-        self.depth_conv = nn.Sequential(OrderedDict([
-            ('conv', DynamicSeparableConv2d(max_middle_channel, self.kernel_size_list, self.stride)),
-            ('bn', DynamicBatchNorm2d(max_middle_channel)),
-            ('act', build_activation(self.act_func, inplace=True))
-        ]))
+        if build_activation(self.act_func, inplace=True) is None:
+            self.depth_conv = nn.Sequential(OrderedDict([
+                ('conv', DynamicSeparableConv2d(max_middle_channel, self.kernel_size_list, self.stride)),
+                ('bn', DynamicBatchNorm2d(max_middle_channel)),
+            ]))
+        else:
+            self.depth_conv = nn.Sequential(OrderedDict([
+                ('conv', DynamicSeparableConv2d(max_middle_channel, self.kernel_size_list, self.stride)),
+                ('bn', DynamicBatchNorm2d(max_middle_channel)),
+                ('act', build_activation(self.act_func, inplace=True))
+            ]))
         if self.use_se:
             self.depth_conv.add_module('se', DynamicSE(max_middle_channel))
         
@@ -64,7 +76,7 @@ class DynamicMBConvLayer(MyModule):
 
         self.depth_conv.conv.active_kernel_size = self.active_kernel_size
         self.point_linear.conv.active_out_channel = self.active_out_channel
-        
+
         if self.inverted_bottleneck is not None:
             x = self.inverted_bottleneck(x)
         x = self.depth_conv(x)

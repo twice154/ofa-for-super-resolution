@@ -138,9 +138,9 @@ class Div2K_SetXXDataProvider(DataProvider):
     def valid_path(self):
         return os.path.join(self.save_path, 'val')
     
-    @property
-    def normalize(self):
-        return transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    @property  # 이후에 dataset에 맞게 해줘야 할 수도 있긴한데, Train-Test 분포가 다르기도 하고 ImageNet 정도면 대표성을 띄고 있다고 생각하기 때문에 굳이 별도로 계산하지 않음
+    def normalize(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):  # Default: ImageNet Config
+        return transforms.Normalize(mean=mean, std=std)
     
     def build_train_transform(self, image_size=None, print_log=True):
         if image_size is None:
@@ -172,8 +172,8 @@ class Div2K_SetXXDataProvider(DataProvider):
         if color_transform is not None:
             train_transforms.append(color_transform)
         train_transforms += [
-            transforms.ToTensor(),
-            self.normalize,
+            # transforms.ToTensor(),
+            # self.normalize,
         ]
 
         train_transforms = transforms.Compose(train_transforms)
@@ -184,9 +184,9 @@ class Div2K_SetXXDataProvider(DataProvider):
             image_size = self.active_img_size
         return transforms.Compose([
             # transforms.Resize(int(math.ceil(image_size / 0.875))),
-            transforms.CenterCrop(image_size),
-            transforms.ToTensor(),
-            self.normalize,
+            ModCrop(mod=4),
+            # transforms.ToTensor(),
+            # self.normalize,
         ])
 
     def assign_active_img_size(self, new_img_size):
@@ -286,10 +286,92 @@ class Div2K_SetXXDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         path = self.paths[index]
-        H_tensor = self.transform(Image.open(path).convert('RGB'))
-        # L_img = self.transform_L(H_img)
-        # H_tensor = self.to_tensor(H_img)
-        # L_tensor = self.to_tensor(L_img)
-        out_dict = {'image': H_tensor}
+        H_img = self.transform(Image.open(path).convert('RGB'))
+        L_img = get_transform_L()(H_img)
+        H_tensor = transforms.ToTensor()(H_img)
+        L_tensor = transforms.ToTensor()(L_img)
+        out_dict = {'image': H_tensor, 'down_image': L_tensor}
 
         return out_dict
+
+
+# from PIL import Image
+# import torchvision.transforms as transforms
+import random
+
+def crop(img, i, j, h, w):
+    """Crop the given PIL.Image.
+    Args:
+        img (PIL.Image): Image to be cropped.
+        i: Upper pixel coordinate.
+        j: Left pixel coordinate.
+        h: Height of the cropped image.
+        w: Width of the cropped image.
+    Returns:
+        PIL.Image: Cropped image.
+    """
+    return img.crop((j, i, j + w, i + h))
+
+class ModCrop(object):
+    """ModCrop the given PIL.Image.
+    Args:
+        mod (int): Crop to make the output size divisible by mod.
+    """
+
+    def __init__(self, mod):
+        self.mod = int(mod)
+
+    @staticmethod
+    def get_params(img, mod):
+        """Get parameters for ``crop`` for mod crop.
+        Args:
+            img (PIL.Image): Image to be cropped.
+            mod (int): Crop to make the output size divisible by mod.
+        Returns:
+            tuple: params (i, j, h, w) to be passed to ``crop`` for mod crop.
+        """
+        w, h = img.size
+        tw = w - w % mod
+        th = h - h % mod
+        return 0, 0, th, tw
+
+    def __call__(self, img):
+        """
+        Args:
+            img (PIL.Image): Image to be cropped.
+        Returns:
+            PIL.Image: Cropped image.
+        """
+        i, j, h, w = self.get_params(img, self.mod)
+        return crop(img, i, j, h, w)
+
+"""
+Modified from the source "torchvision.transforms".
+Use scale_factor as input instead of outputsize
+"""
+def scale(img, size, interpolation=Image.BICUBIC):
+    assert isinstance(size, tuple) and len(size) == 2
+    return img.resize(size[::-1], interpolation) # flip to (h,w) to (w,h)
+
+class Scale(object):
+    def __init__(self, scale_factor, interpolation=Image.BICUBIC):
+        self.scale_factor = scale_factor
+        self.interpolation = interpolation
+
+    @staticmethod
+    def get_params(img, scale_factor):
+        w, h = img.size
+        tw = int(w * scale_factor)
+        th = int(h * scale_factor)
+        return (th, tw)
+
+    def __call__(self, img):
+        size = self.get_params(img, self.scale_factor)
+        return scale(img, size, self.interpolation)
+
+def get_transform_L(opt=4):
+    assert opt in (2, 4, 8)
+    scale = 1 / opt
+    transform_list = []
+    transform_list.append(Scale(scale_factor=scale, interpolation=Image.BICUBIC))
+    return transforms.Compose(transform_list)

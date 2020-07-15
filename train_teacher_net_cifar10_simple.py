@@ -75,7 +75,7 @@ args = parser.parse_args()
 #         args.depth_list = '2,3,4'
 # else:
 #     raise NotImplementedError
-args.path = 'exp/normal2kernel'
+args.path = 'exp/cifar10/normal'
 args.n_epochs = 120
 args.base_lr = 0.01
 args.warmup_epochs = 5
@@ -88,7 +88,7 @@ args.manual_seed = 0
 args.lr_schedule_type = 'cosine'
 
 args.base_batch_size = 2048
-args.valid_size = 10000
+args.valid_size = None
 
 args.opt_type = 'sgd'
 args.momentum = 0.9
@@ -103,7 +103,7 @@ args.validation_frequency = 1
 args.print_frequency = 10
 
 args.n_worker = 8
-args.resize_scale = 0.08
+args.resize_scale = 1.0
 args.distort_color = None
 args.image_size = '32'
 args.continuous_size = True
@@ -121,6 +121,8 @@ args.independent_distributed_sampling = False
 args.kd_ratio = 0.0
 args.kd_type = 'ce'
 
+args.num_gpus = 8
+
 
 if __name__ == '__main__':
     os.makedirs(args.path, exist_ok=True)
@@ -135,7 +137,7 @@ if __name__ == '__main__':
     #     model_dir='.torch/ofa_checkpoints/%d' % hvd.rank()
     # )
 
-    num_gpus = 8
+    num_gpus = args.num_gpus
 
     torch.manual_seed(args.manual_seed)
     torch.cuda.manual_seed_all(args.manual_seed)

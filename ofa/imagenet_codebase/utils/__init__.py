@@ -81,7 +81,7 @@ def delta_ij(i, j):
         return 0
 
 
-def sub_filter_start_end(kernel_size, sub_kernel_size):
+def sub_filter_start_end(kernel_size, sub_kernel_size):  # Progressive Shrinking에서 더 작은 Filter 선택 Index 반환하는 함수
     center = kernel_size // 2
     dev = sub_kernel_size // 2
     start, end = center - dev, center + dev + 1

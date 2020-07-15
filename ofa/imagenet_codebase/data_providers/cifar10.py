@@ -165,6 +165,7 @@ class Cifar10DataProvider(DataProvider):
 
         train_transforms = [
             # resize_transform_class(image_size, scale=(self.resize_scale, 1.0)),
+            transforms.RandomCrop(image_size),
             transforms.RandomHorizontalFlip(),
         ]
         if color_transform is not None:

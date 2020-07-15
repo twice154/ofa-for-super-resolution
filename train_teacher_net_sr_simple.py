@@ -11,7 +11,7 @@ import random
 import torch
 
 from ofa.elastic_nn.modules.dynamic_op import DynamicSeparableConv2d
-from ofa.elastic_nn.networks import OFAMobileNetV3
+from ofa.elastic_nn.networks import OFAMobileNetX4
 from ofa.imagenet_codebase.run_manager import Div2K_SetXXRunConfig
 from ofa.imagenet_codebase.run_manager.sr_run_manager import SRRunManager
 from ofa.imagenet_codebase.data_providers.base_provider import MyRandomResizedCrop  # SR 할때는 안씀, 그냥 여기서 Parameter 초기화하는데 빼기 귀찮아서 냅둠
@@ -75,10 +75,10 @@ args = parser.parse_args()
 #         args.depth_list = '2,3,4'
 # else:
 #     raise NotImplementedError
-args.path = 'exp/normal'
+args.path = 'exp/sr/normal'
 args.n_epochs = 500
 args.base_lr = 0.001
-args.warmup_epochs = 0
+args.warmup_epochs = 5
 args.warmup_lr = -1
 args.ks_list = '7'
 args.expand_list = '6'
@@ -87,14 +87,14 @@ args.manual_seed = 0
 
 args.lr_schedule_type = 'cosine'
 
-args.base_batch_size = 64
+args.base_batch_size = 8
 args.valid_size = None
 
-args.opt_type = 'sgd'
+args.opt_type = 'adam'
 args.momentum = 0.9
 args.no_nesterov = False
 args.weight_decay = 3e-5
-args.label_smoothing = 0.1
+args.label_smoothing = 0.0
 args.no_decay_keys = 'bn#bias'
 args.fp16_allreduce = False
 
@@ -103,9 +103,9 @@ args.validation_frequency = 1
 args.print_frequency = 10
 
 args.n_worker = 8
-args.resize_scale = 0.08
+args.resize_scale = 1.0
 args.distort_color = None
-args.image_size = '32'
+args.image_size = '96'
 args.continuous_size = True
 args.not_sync_distributed_image_size = False
 
@@ -121,6 +121,8 @@ args.independent_distributed_sampling = False
 args.kd_ratio = 0.0
 args.kd_type = None
 
+args.num_gpus = 8
+
 
 if __name__ == '__main__':
     os.makedirs(args.path, exist_ok=True)
@@ -135,7 +137,7 @@ if __name__ == '__main__':
     #     model_dir='.torch/ofa_checkpoints/%d' % hvd.rank()
     # )
 
-    num_gpus = 8
+    num_gpus = args.num_gpus
 
     torch.manual_seed(args.manual_seed)
     torch.cuda.manual_seed_all(args.manual_seed)
@@ -159,7 +161,7 @@ if __name__ == '__main__':
     if args.warmup_lr < 0:
         args.warmup_lr = args.base_lr
     args.train_batch_size = args.base_batch_size
-    args.test_batch_size = args.base_batch_size * 4
+    args.test_batch_size = 1
     run_config = Div2K_SetXXRunConfig(**args.__dict__)
 
     # print run config information
@@ -178,8 +180,8 @@ if __name__ == '__main__':
     args.expand_list = [int(e) for e in args.expand_list.split(',')]
     args.depth_list = [int(d) for d in args.depth_list.split(',')]
 
-    net = OFAMobileNetV3(
-        n_classes=run_config.data_provider.n_classes, bn_param=(args.bn_momentum, args.bn_eps),
+    net = OFAMobileNetX4(
+        bn_param=(args.bn_momentum, args.bn_eps),
         dropout_rate=args.dropout, base_stage_width=args.base_stage_width, width_mult_list=args.width_mult_list,
         ks_list=args.ks_list, expand_ratio_list=args.expand_list, depth_list=args.depth_list
     )

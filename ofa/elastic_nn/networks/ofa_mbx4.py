@@ -28,8 +28,11 @@ class OFAMobileNetX4(MobileNetX4):
         self.ks_list.sort()
         self.expand_ratio_list.sort()
         self.depth_list.sort()
-
-        base_stage_width = [640,  64, 64, 64, 64, 64,  64, 64, 64, 3,  640,  64, 64, 64, 64, 64,  640, 2560, 2560, 30]
+                    # FROM [3,64    64, 64,     64, 64,     64,64,     64, 64,     64, 64,     64,  64]
+        base_stage_width = [16,     64, 64,     64, 64,     3, 64,     64, 64,     64, 64,     256, 3]
+                         # [Unshu   ResBlock      ResCon               ResBlock      ResCon    Shu]
+                         # [2,      4,  4,      1,  1,      1, 1,      4,  4,      1,  1,      2,   1]
+                         # [   Skip,              Con,            Skip,              Con]
 
         # final_expand_width = [
         #     make_divisible(base_stage_width[-2] * max(self.width_mult_list), 8) for _ in self.width_mult_list
@@ -38,56 +41,35 @@ class OFAMobileNetX4(MobileNetX4):
         #     make_divisible(base_stage_width[-1] * max(self.width_mult_list), 8) for _ in self.width_mult_list
         # ]
 
-        stride_stages = [1,  1, 2, 1, 2, 1,  1, 1, 1, 1,  1,  1, 1, 1, 1, 1,  1, 1, 1, 1]
-        act_stages = ['lrelu',  'lrelu', 'lrelu', 'lrelu', 'lrelu', 'lrelu',  None, 'lrelu', 'lrelu', None,  'lrelu',  'lrelu', 'lrelu', 'lrelu', 'lrelu', 'lrelu',  None, 'pixelshuffle+lrelu', 'pixelshuffle+lrelu', None]
-        se_stages = [False,  False, False, False, False, False,  False, False, False, False,  False,  False, False, False, False, False,  False, False, False, False]
+        stride_stages = [1,     1, 1,     1, 1,     1, 1,     1, 1,     1, 1,     1, 1]
+        act_stages = ['pixelunshuffle',     'relu6', 'relu6',     None, None,     None, None,   'relu6', 'relu6',     None, None,     'pixelshuffle', None]
+        se_stages = [False,     False, False,     False, False,     False, False,     False, False,     False, False,     False, False]
         if depth_list is None:
             n_block_list = [1, 2, 3, 4, 2, 3]
             self.depth_list = [4, 4]
             print('Use MobileNetV3 Depth Setting')
         else:
-            n_block_list = [1] + [max(self.depth_list)]*5 + [1]*4 + [1] + [max(self.depth_list)]*5 + [1]*4
+            n_block_list = [2] + [max(self.depth_list)]*2 + [1]*4 + [max(self.depth_list)]*2 + [1]*2 + [2] + [1]  # 2는 pixelshuffle, pixelunshuffle의 ㅇepth
+            # [2, 4, 4, 1, 1, 1, 1, 1, 4, 4, 1, 1, 2, 1]
         width_list = []
         for base_width in base_stage_width:
-            width = [make_divisible(base_width * width_mult, 8) for width_mult in self.width_mult_list]
-            if base_width == 3:
-                width = [3] #[1, 3, 9]
-            elif base_width == 30:
-                width = [3]
-            elif base_width == 640:
-                width = [64]
-            elif base_width == 2560:
-                width = [256]
+            # width = [make_divisible(base_width * width_mult, 8) for width_mult in self.width_mult_list]
+            width = [make_divisible(base_width * width_mult, 1) for width_mult in self.width_mult_list]
             width_list.append(width)
 
+        #################################################################################################### encoder unshuffle
         input_channel = width_list[0]
-        #################################################################################################### encoder first conv layer
-        if len(set(input_channel)) == 1:
-            enc_first_conv = ConvLayer(3, max(input_channel), kernel_size=9, stride=stride_stages[0], act_func=act_stages[0], use_bn=False)
-        # else:
-        #     enc_first_conv = DynamicConvLayer(
-        #         in_channel_list=int2list(3, len(input_channel)), out_channel_list=input_channel, kernel_size=9,
-        #         stride=stride_stages[0], act_func=act_stages[0], use_bn=False
-        #     )
-        
-        #################################################################################################### encoder input skip connection layer
-        if len(set(input_channel)) == 1 and len(set(width_list[6])) == 1:
-            enc_input_skip_conn = ConvLayer(input_channel, width_list[6], kernel_size=1, stride=4, act_func=None)
-        elif len(set(input_channel)) == 1 and len(set(width_list[6])) != 1:
-            enc_input_skip_conn = DynamicConvLayer(in_channel_list=int2list(input_channel, len(width_list[6])), out_channel_list=width_list[6], kernel_size=1, stride=4, act_func=None)
-        # elif len(set(input_channel)) != 1 and len(set(width_list[6])) == 1:
-        #     enc_input_skip_conn = DynamicConvLayer(in_channel_list=input_channel, out_channel_list=int2list(width_list[6], len(input_channel)), kernel_size=1, stride=4, act_func=None)
-        # else:
-        #     enc_input_skip_conn = DynamicConvLayer(in_channel_list=input_channel, out_channel_list=width_list[6], kernel_size=1, stride=4, act_func=None)
+        enc_first_pixelunshuffle = ConvLayer(3, max(input_channel), kernel_size=3, stride=stride_stages[0], act_func=act_stages[0], use_bn=True)
+        enc_second_pixelunshuffle = ConvLayer(max(input_channel)*4, max(input_channel), kernel_size=3, stride=stride_stages[0], act_func=act_stages[0], use_bn=True)
 
         #################################################################################################### encoder inverted residual blocks
-        self.block_group_info = []
-        blocks = []
-        _block_index = 0
-        feature_dim = input_channel
+        self.block_group_info = [[0, 1]]
+        blocks = [enc_first_pixelunshuffle, enc_second_pixelunshuffle]
+        _block_index = 2
+        feature_dim = width_list[1]  # pixelunshuffle 해서 x4 되기때문에 그냥 이렇게함
 
-        for width, n_block, s, act_func, use_se in zip(width_list[1:6], n_block_list[1:6],
-                                                       stride_stages[1:6], act_stages[1:6], se_stages[1:6]):
+        for width, n_block, s, act_func, use_se in zip(width_list[1:3], n_block_list[1:3],
+                                                       stride_stages[1:3], act_stages[1:3], se_stages[1:3]):
             self.block_group_info.append([_block_index + i for i in range(n_block)])
             _block_index += n_block
 
@@ -101,31 +83,14 @@ class OFAMobileNetX4(MobileNetX4):
                     in_channel_list=feature_dim, out_channel_list=output_channel, kernel_size_list=ks_list,
                     expand_ratio_list=expand_ratio_list, stride=stride, act_func=act_func, use_se=use_se,
                 )
-                if len(set(feature_dim)) == 1:
-                    if stride == 1 and feature_dim == output_channel:
-                        shortcut = IdentityLayer(feature_dim, feature_dim)
-                    elif stride == 1 and feature_dim != output_channel:
-                        shortcut = ConvLayer(feature_dim, output_channel, kernel_size=1, stride=stride, act_func=None)
-                    elif stride == 2:
-                        shortcut = ConvLayer(feature_dim, output_channel, kernel_size=1, stride=stride, act_func=None)
-                    else:
-                        shortcut = None
-                else:
-                    if stride == 1 and feature_dim == output_channel:
-                        shortcut = IdentityLayer(feature_dim, feature_dim)
-                    elif stride == 1 and feature_dim != output_channel:
-                        shortcut = DynamicConvLayer(in_channel_list=feature_dim, out_channel_list=output_channel, kernel_size=1, stride=stride, act_func=None)
-                    elif stride == 2:
-                        shortcut = DynamicConvLayer(in_channel_list=feature_dim, out_channel_list=output_channel, kernel_size=1, stride=stride, act_func=None)
-                    else:
-                        shortcut = None
+                shortcut = IdentityLayer(feature_dim, feature_dim)
                 blocks.append(MobileInvertedResidualBlock(mobile_inverted_conv, shortcut))
                 feature_dim = output_channel
         
-        #################################################################################################### encoder final conv layers
-        enc_final_blocks = []
-        for width, n_block, s, act_func, use_se in zip(width_list[6:10], n_block_list[6:10],
-                                                       stride_stages[6:10], act_stages[6:10], se_stages[6:10]):
+        #################################################################################################### encoder final conv blocks
+        enc_final_conv_blocks = []
+        for width, n_block, s, act_func, use_se in zip(width_list[3:6], n_block_list[3:6],
+                                                       stride_stages[3:6], act_stages[3:6], se_stages[3:6]):
             # self.block_group_info.append([_block_index + i for i in range(n_block)])
             # _block_index += n_block
 
@@ -135,56 +100,17 @@ class OFAMobileNetX4(MobileNetX4):
                     stride = s
                 else:
                     stride = 1
-                mobile_inverted_conv = DynamicMBConvLayer(
-                    in_channel_list=feature_dim, out_channel_list=output_channel, kernel_size_list=ks_list,
-                    expand_ratio_list=expand_ratio_list, stride=stride, act_func=act_func, use_se=use_se,
-                )
-                if len(set(feature_dim)) == 1:
-                    if stride == 1 and feature_dim == output_channel:
-                        shortcut = IdentityLayer(feature_dim, feature_dim)
-                    elif stride == 1 and feature_dim != output_channel:
-                        shortcut = ConvLayer(feature_dim, output_channel, kernel_size=1, stride=stride, act_func=None)
-                    elif stride == 2:
-                        shortcut = ConvLayer(feature_dim, output_channel, kernel_size=1, stride=stride, act_func=None)
-                    else:
-                        shortcut = None
-                else:
-                    if stride == 1 and feature_dim == output_channel:
-                        shortcut = IdentityLayer(feature_dim, feature_dim)
-                    elif stride == 1 and feature_dim != output_channel:
-                        shortcut = DynamicConvLayer(in_channel_list=feature_dim, out_channel_list=output_channel, kernel_size=1, stride=stride, act_func=None)
-                    elif stride == 2:
-                        shortcut = DynamicConvLayer(in_channel_list=feature_dim, out_channel_list=output_channel, kernel_size=1, stride=stride, act_func=None)
-                    else:
-                        shortcut = None
-                enc_final_blocks.append(MobileInvertedResidualBlock(mobile_inverted_conv, shortcut))
+                enc_final_conv_blocks.append(ConvLayer(max(feature_dim), max(output_channel), kernel_size=3, stride=s, act_func=act_func, use_bn=True))
                 feature_dim = output_channel
 
-        input_channel = width_list[10]
-        #################################################################################################### decoder first conv layer
-        if len(set(input_channel)) == 1:
-            dec_first_conv = ConvLayer(3, max(input_channel), kernel_size=9, stride=stride_stages[10], act_func=act_stages[10], use_bn=False)
-        else:
-            dec_first_conv = DynamicConvLayer(
-                in_channel_list=width_list[9], out_channel_list=int2list(input_channel, len(width_list[9]), kernel_size=9,
-                stride=stride_stages[10], act_func=act_stages[10], use_bn=False
-            )
-
-        #################################################################################################### decoder input skip connection layer
-        if len(set(input_channel)) == 1 and len(set(width_list[16])) == 1:
-            dec_input_skip_conn = ConvLayer(input_channel, width_list[16], kernel_size=1, stride=4, act_func=None)
-        elif len(set(input_channel)) == 1 and len(set(width_list[16])) != 1:
-            dec_input_skip_conn = DynamicConvLayer(in_channel_list=int2list(input_channel, len(width_list[16])), out_channel_list=width_list[16], kernel_size=1, stride=4, act_func=None)
-        # elif len(set(input_channel)) != 1 and len(set(width_list[16])) == 1:
-        #     dec_input_skip_conn = DynamicConvLayer(in_channel_list=input_channel, out_channel_list=int2list(width_list[16], len(input_channel)), kernel_size=1, stride=4, act_func=None)
-        # else:
-        #     dec_input_skip_conn = DynamicConvLayer(in_channel_list=input_channel, out_channel_list=width_list[16], kernel_size=1, stride=4, act_func=None)
+        #################################################################################################### decoder first conv block
+        dec_first_conv_block = ConvLayer(max(feature_dim), max(width_list[6]), kernel_size=3, stride=stride_stages[6], act_func=act_stages[6], use_bn=True)
 
         #################################################################################################### decoder inverted residual blocks
-        feature_dim = input_channel
+        feature_dim = width_list[6]
 
-        for width, n_block, s, act_func, use_se in zip(width_list[11:16], n_block_list[11:16],
-                                                       stride_stages[11:16], act_stages[11:16], se_stages[11:16]):
+        for width, n_block, s, act_func, use_se in zip(width_list[7:9], n_block_list[7:9],
+                                                       stride_stages[7:9], act_stages[7:9], se_stages[7:9]):
             self.block_group_info.append([_block_index + i for i in range(n_block)])
             _block_index += n_block
 
@@ -198,53 +124,46 @@ class OFAMobileNetX4(MobileNetX4):
                     in_channel_list=feature_dim, out_channel_list=output_channel, kernel_size_list=ks_list,
                     expand_ratio_list=expand_ratio_list, stride=stride, act_func=act_func, use_se=use_se,
                 )
-                if len(set(feature_dim)) == 1:
-                    if stride == 1 and feature_dim == output_channel:
-                        shortcut = IdentityLayer(feature_dim, feature_dim)
-                    elif stride == 1 and feature_dim != output_channel:
-                        shortcut = ConvLayer(feature_dim, output_channel, kernel_size=1, stride=stride, act_func=None)
-                    elif stride == 2:
-                        shortcut = ConvLayer(feature_dim, output_channel, kernel_size=1, stride=stride, act_func=None)
-                    else:
-                        shortcut = None
-                else:
-                    if stride == 1 and feature_dim == output_channel:
-                        shortcut = IdentityLayer(feature_dim, feature_dim)
-                    elif stride == 1 and feature_dim != output_channel:
-                        shortcut = DynamicConvLayer(in_channel_list=feature_dim, out_channel_list=output_channel, kernel_size=1, stride=stride, act_func=None)
-                    elif stride == 2:
-                        shortcut = DynamicConvLayer(in_channel_list=feature_dim, out_channel_list=output_channel, kernel_size=1, stride=stride, act_func=None)
-                    else:
-                        shortcut = None
+                shortcut = IdentityLayer(feature_dim, feature_dim)
                 blocks.append(MobileInvertedResidualBlock(mobile_inverted_conv, shortcut))
                 feature_dim = output_channel
 
-        #################################################################################################### decoder final conv layers
-        dec_final_blocks = []
+        #################################################################################################### decoder final conv blocks
+        dec_final_conv_blocks = []
+        for width, n_block, s, act_func, use_se in zip(width_list[9:11], n_block_list[9:11],
+                                                       stride_stages[9:11], act_stages[9:11], se_stages[9:11]):
+            # self.block_group_info.append([_block_index + i for i in range(n_block)])
+            # _block_index += n_block
 
-        output_channel = width_list[16]
-        if len(set(feature_dim)) == 1 and len(set(output_channel)) == 1: 
-            dec_final_blocks.append(ConvLayer(input_channel, width_list[6], kernel_size=1, stride=4, act_func=None))
-        # elif len(set(feature_dim)) == 1 and len(set(output_channel)) != 1: 
-        elif len(set(feature_dim)) != 1 and len(set(output_channel)) == 1: 
-            dec_final_bloks.append(DynamicConvLayer(in_channel_list=feature_dim, out_channel_list=int2list(output_channel, len(feature_dim)), kernel_size=3, stride=stride_stages[16], act_func=act_stages[16]))
-        # else:
-        feature_dim = output_channel
+            output_channel = width
+            for i in range(n_block):
+                if i == 0:
+                    stride = s
+                else:
+                    stride = 1
+                dec_final_conv_blocks.append(ConvLayer(max(feature_dim), max(output_channel), kernel_size=3, stride=s, act_func=act_func, use_bn=True))
+                feature_dim = output_channel
 
-        output_channel = width_list[17]
-        dec_final_blocks.append(ConvLayer(feature_dim, output_channel, kernel_size=3, stride=stride_stages[17], act_func=act_stages[17], use_bn=False))
-        feature_dim = output_channel
+        #################################################################################################### decoder shuffle
+    # for width, n_block, s, act_func, use_se in zip(width_list[11], n_block_list[11],
+    #                                                 stride_stages[11], act_stages[11], se_stages[11]):
+        self.block_group_info.append([_block_index + i for i in range(n_block_list[11])])
+        _block_index += n_block_list[11]
 
-        output_channel = width_list[18]
-        dec_final_blocks.append(ConvLayer(feature_dim, output_channel, kernel_size=3, stride=stride_stages[18], act_func=act_stages[18], use_bn=False))
-        feature_dim = output_channel
+        output_channel = width_list[11]
+        for i in range(n_block_list[11]):
+            if i == 0:
+                stride = stride_stages[11]
+            else:
+                stride = 1
+            blocks.append(ConvLayer(max(feature_dim), max(output_channel), kernel_size=3, stride=s, act_func=act_stages[11], use_bn=True))
 
-        output_channel = width_list[19]
-        dec_final_blocks.append(ConvLayer(feature_dim, output_channel, kernel_size=3, stride=stride_stages[19], act_func=act_stages[19], use_bn=False))
-        # feature_dim = output_channel
+        #################################################################################################### decoder final output conv block
+        dec_final_output_conv_block = ConvLayer(max(feature_dim), max(width_list[12]), kernel_size=3, stride=stride_stages[12], act_func=act_stages[12], use_bn=True)
 
         ####################################################################################################
-        super(OFAMobileNetV3, self).__init__(first_conv, blocks, final_expand_layer, feature_mix_layer, classifier)
+        super(OFAMobileNetX4, self).__init__(blocks, enc_final_conv_blocks,
+                                            dec_first_conv_block, dec_final_conv_blocks, dec_final_output_conv_block)
 
         # set bn param
         self.set_bn_param(momentum=bn_param[0], eps=bn_param[1])
@@ -258,76 +177,103 @@ class OFAMobileNetX4(MobileNetX4):
     def name():
         return 'OFAMobileNetX4'
 
-    def forward(self, x):
-        ########## enc first conv
-        x = self.enc_first_conv(x)
-        # enc input skip conn
-        enc_big_skip = self.enc_input_skip_conn(x)
+    def forward(self, x, down_image):
+        ########## encoder unshuffle
+        for stage_id, block_idx in enumerate(self.block_group_info[:1]):
+            depth = self.runtime_depth[stage_id]
+            active_idx = block_idx[:depth]
+            for idx in active_idx:
+                x = self.blocks[idx](x)
+        
+        enc_big_skip = x
 
-        ########## enc blocks
-        for stage_id, block_idx in enumerate(self.block_group_info[:5]):
+        ########## encoder inverted residual blocks
+        for stage_id, block_idx in enumerate(self.block_group_info[1:3]):
             depth = self.runtime_depth[stage_id]
             active_idx = block_idx[:depth]
             for idx in active_idx:
                 x = self.blocks[idx](x)
 
-        ########## enc final conv
-        for i, enc_final_block in enumerate(self.enc_final_blocks):
-            x = enc_final_block(x)
+        ########## encoder final conv blocks
+        for i, enc_final_conv_block in enumerate(self.enc_final_conv_blocks):
+            x = enc_final_conv_block(x)
             if i == 0:
                 x += enc_big_skip
 
-        ########## dec first conv
-        x = self.dec_first_conv(x)
+        ########## decoder first conv block
+        x += down_image
+        x = self.dec_first_conv_block(x)
 
-        ########## dec input skip conn
-        dec_big_skip = self.dec_input_skip_conn(x)
+        dec_big_skip = x
 
-        ########## dec blocks
+        ########## decoder inverted residual blocks
+        for stage_id, block_idx in enumerate(self.block_group_info[3:5]):
+            depth = self.runtime_depth[stage_id]
+            active_idx = block_idx[:depth]
+            for idx in active_idx:
+                x = self.blocks[idx](x)
+
+        ########## decoder final conv blocks
+        for i, dec_final_conv_block in enumerate(self.dec_final_conv_blocks):
+            x = dec_final_conv_block(x)
+            if i == 0:
+                x += dec_big_skip
+
+        ########## decoder shuffle
         for stage_id, block_idx in enumerate(self.block_group_info[5:]):
             depth = self.runtime_depth[stage_id]
             active_idx = block_idx[:depth]
             for idx in active_idx:
                 x = self.blocks[idx](x)
 
-        ########## dec final conv
-        for i, dec_final_block in enumerate(self.dec_final_blocks):
-            x = dec_final_block(x)
-            if i == 0:
-                x += dec_big_skip
-                 
+        ########## decoder final output conv block
+        x = self.dec_final_output_conv_block(x)
+
         return x
+        
 
     @property
     def module_str(self):
-        _str = self.first_conv.module_str + '\n'
-        _str += self.blocks[0].module_str + '\n'
-
+        _str = self.enc_first_conv.module_str + '\n'
+        _str += self.enc_input_skip_conn.module_str + '\n'
+        for block in self.enc_final_conv_blocks:
+            _str += block.module_str + '\n'
+        
         for stage_id, block_idx in enumerate(self.block_group_info):
             depth = self.runtime_depth[stage_id]
             active_idx = block_idx[:depth]
             for idx in active_idx:
                 _str += self.blocks[idx].module_str + '\n'
 
-        _str += self.final_expand_layer.module_str + '\n'
-        _str += self.feature_mix_layer.module_str + '\n'
-        _str += self.classifier.module_str + '\n'
+        _str += self.dec_first_conv.module_str + '\n'
+        _str += self.dec_input_skip_conn.module_str + '\n'
+        for block in self.dec_final_conv_blocks:
+            _str += block.module_str + '\n'
+        
         return _str
 
     @property
     def config(self):
         return {
-            'name': OFAMobileNetV3.__name__,
-            'bn': self.get_bn_param(),
-            'first_conv': self.first_conv.config,
-            'blocks': [
-                block.config for block in self.blocks
-            ],
-            'final_expand_layer': self.final_expand_layer.config,
-            'feature_mix_layer': self.feature_mix_layer.config,
-            'classifier': self.classifier.config,
+            'name': OFAMobileNetX4.__name__,
+            # 'bn': self.get_bn_param(),
+            # 'enc_first_conv': self.enc_first_conv.config,
+            # 'enc_input_skip_conn': self.enc_input_skip_conn.config,
+            # 'enc_final_conv_blocks': [
+            #     block.config for block in self.enc_final_conv_blocks
+            # ],
+            # 'blocks': [
+            #     block.config for block in self.blocks
+            # ],
+            # 'dec_first_conv': self.dec_first_conv.config,
+            # 'dec_input_skip_conn': self.dec_input_skip_conn.config,
+            # 'dec_final_conv_blocks': [
+            #     block.config for block in self.dec_final_conv_blocks
+            # ],
         }
 
+
+#################################################################################################### 아래부분 일단 Teacher Training에서는 사용되지 않음
     @staticmethod
     def build_from_config(config):
         raise ValueError('do not support this function')

@@ -63,7 +63,7 @@ class DynamicSeparableConv2d(nn.Module):
                 _input_filter = _input_filter.view(-1, _input_filter.size(2))
                 _input_filter = F.linear(
                     _input_filter, self.__getattr__('%dto%d_matrix' % (src_ks, target_ks)),
-                )
+                )  # Transformation Matrix 통과시켜서 Kernel Weight 알맞게 바꾸는 부분
                 _input_filter = _input_filter.view(filters.size(0), filters.size(1), target_ks ** 2)
                 _input_filter = _input_filter.view(filters.size(0), filters.size(1), target_ks, target_ks)
                 start_filter = _input_filter

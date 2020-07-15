@@ -208,7 +208,7 @@ def download_url(url, model_dir='~/.torch/', overwrite=False):
 
 
 
-def get_same_padding(kernel_size):
+def get_same_padding(kernel_size):  # Dilation 및 Stride는 따로 생각하지 않고 그냥 same padding 구하는 함수
     if isinstance(kernel_size, tuple):
         assert len(kernel_size) == 2, 'invalid kernel size: %s' % kernel_size
         p1 = get_same_padding(kernel_size[0])
@@ -256,6 +256,8 @@ def build_activation(act_func, inplace=True, upscale_factor=2):
         return nn.PReLU(inplace=inplace)
     elif act_func == 'lrelu':
         return nn.LeakyReLU(0.1, inplace=inplace)
+    elif act_func == 'pixelshuffle':
+        return build_pixelshuffle(upscale_factor=2)
     elif act_func == 'pixelshuffle+relu':
         return nn.Sequential(
             build_pixelshuffle(upscale_factor=upscale_factor),
@@ -276,6 +278,28 @@ def build_activation(act_func, inplace=True, upscale_factor=2):
             build_pixelshuffle(upscale_factor=upscale_factor),
             nn.LeakyReLU(0.1, inplace=inplace)
         )
+    elif act_func == 'pixelunshuffle':
+        return build_pixelunshuffle(downscale_factor=2)
+    elif act_func == 'pixelunshuffle+relu':
+        return nn.Sequential(
+            build_pixelunshuffle(downscale_factor=upscale_factor),
+            nn.ReLU(inplace=inplace)
+        )
+    elif act_func == 'pixelunshuffle+relu6':
+        return nn.Sequential(
+            build_pixelunshuffle(downscale_factor=upscale_factor),
+            nn.ReLU6(inplace=inplace)
+        )
+    elif act_func == 'pixelunshuffle+prelu':
+        return nn.Sequential(
+            build_pixelunshuffle(downscale_factor=upscale_factor),
+            nn.PReLU(inplace=inplace)
+        )
+    elif act_func == 'pixelunshuffle+lrelu':
+        return nn.Sequential(
+            build_pixelunshuffle(downscale_factor=upscale_factor),
+            nn.LeakyReLU(0.1, inplace=inplace)
+        )
     elif act_func is None:
         return None
     else:
@@ -284,6 +308,10 @@ def build_activation(act_func, inplace=True, upscale_factor=2):
 
 def build_pixelshuffle(upscale_factor=2):
     return nn.PixelShuffle(upscale_factor=upscale_factor)
+
+
+def build_pixelunshuffle(downscale_factor=2):
+    return PixelUnshuffle(downscale_factor=downscale_factor)
 
 
 class ShuffleLayer(nn.Module):
@@ -345,3 +373,38 @@ class SEModule(nn.Module):
         y = x.mean(3, keepdim=True).mean(2, keepdim=True)
         y = self.fc(y)
         return x * y
+
+
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
+
+
+def pixel_unshuffle(input, downscale_factor):
+    '''
+    input: batchSize * c * k*w * k*h
+    kdownscale_factor: k
+    batchSize * c * k*w * k*h -> batchSize * k*k*c * w * h
+    '''
+    c = input.shape[1]
+
+    kernel = torch.zeros(size=[downscale_factor * downscale_factor * c,
+                               1, downscale_factor, downscale_factor],
+                         device=input.device)
+    for y in range(downscale_factor):
+        for x in range(downscale_factor):
+            kernel[x + y * downscale_factor::downscale_factor*downscale_factor, 0, y, x] = 1
+    return F.conv2d(input, kernel, stride=downscale_factor, groups=c)
+
+class PixelUnshuffle(nn.Module):
+    def __init__(self, downscale_factor):
+        super(PixelUnshuffle, self).__init__()
+        self.downscale_factor = downscale_factor
+    def forward(self, input):
+        '''
+        input: batchSize * c * k*w * k*h
+        kdownscale_factor: k
+        batchSize * c * k*w * k*h -> batchSize * k*k*c * w * h
+        '''
+
+        return pixel_unshuffle(input, self.downscale_factor)
