@@ -158,13 +158,13 @@ class SRRunManager:
             self.network.init_model(run_config.model_init)
 
         # net info
-        # net_info = get_net_info(self.net, self.run_config.data_provider.data_shape, measure_latency, True)
-        # with open('%s/net_info.txt' % self.path, 'w') as fout:
-        #     fout.write(json.dumps(net_info, indent=4) + '\n')
-        #     try:
-        #         fout.write(self.network.module_str)
-        #     except Exception:
-        #         pass
+        net_info = get_net_info(self.net, self.run_config.data_provider.data_shape, measure_latency, True)
+        with open('%s/net_info.txt' % self.path, 'w') as fout:
+            fout.write(json.dumps(net_info, indent=4) + '\n')
+            try:
+                fout.write(self.network.module_str)
+            except Exception:
+                pass
 
         # criterion
         if isinstance(self.run_config.mixup_alpha, float):
@@ -173,8 +173,8 @@ class SRRunManager:
             self.train_criterion = lambda pred, target: \
                 cross_entropy_with_label_smoothing(pred, target, self.run_config.label_smoothing)
         else:
-            self.train_criterion = nn.MSELoss()
-        self.test_criterion = nn.MSELoss()
+            self.train_criterion = nn.MSELoss()  # nn.L1Loss()
+        self.test_criterion = nn.MSELoss()  # nn.L1Loss()
 
         # optimizer
         if self.run_config.no_decay_keys:
@@ -342,14 +342,14 @@ class SRRunManager:
                       desc='Validate Epoch #{} {}'.format(epoch + 1, run_str), disable=no_logs) as t:
                 for i, mini_batch in enumerate(data_loader):
                     images = mini_batch['image']
-                    down_images = mini_batch['down_image']
+                    # down_images = mini_batch['down_image']
                     images = images.to(self.device)
-                    down_images = down_images.to(self.device)
+                    # down_images = down_images.to(self.device)
                     # compute output
-                    output = net(images, down_images)
+                    output = net(images)
                     loss = self.test_criterion(output, images)
                     # measure accuracy and record loss
-                    psnr_current = psnr(tensor2img_np(output), tensor2img_np(images))
+                    psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
 
                     losses.update(loss.item(), images.size(0))
                     # top1.update(acc1[0].item(), images.size(0))
@@ -400,7 +400,7 @@ class SRRunManager:
             end = time.time()
             for i, mini_batch in enumerate(self.run_config.train_loader):
                 images = mini_batch['image']
-                down_images = mini_batch['down_image']
+                # down_images = mini_batch['down_image']
                 data_time.update(time.time() - end)
                 if epoch < warmup_epochs:
                     new_lr = self.run_config.warmup_adjust_learning_rate(
@@ -410,7 +410,7 @@ class SRRunManager:
                     new_lr = self.run_config.adjust_learning_rate(self.optimizer, epoch - warmup_epochs, i, nBatch)
 
                 images = images.to(self.device)
-                down_images = down_images.to(self.device)
+                # down_images = down_images.to(self.device)
                 target = images
 
                 # soft target
@@ -427,7 +427,7 @@ class SRRunManager:
                     loss2 = self.train_criterion(aux_outputs, labels)
                     loss = loss1 + 0.4 * loss2
                 else:
-                    output = self.net(images, down_images)
+                    output = self.net(images)
                     loss = self.train_criterion(output, images)
 
                 if args.teacher_model is None:
@@ -452,7 +452,7 @@ class SRRunManager:
 
                 # measure accuracy and record loss
                 # acc1, acc5 = accuracy(output, target, topk=(1, 5))
-                psnr_current = psnr(tensor2img_np(output), tensor2img_np(images))
+                psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
                 losses.update(loss.item(), images.size(0))
                 # top1.update(acc1[0].item(), images.size(0))
                 # top5.update(acc5[0].item(), images.size(0))
@@ -474,30 +474,30 @@ class SRRunManager:
 
     def train(self, args, warmup_epoch=0, warmup_lr=0):
         for epoch in range(self.start_epoch, self.run_config.n_epochs + warmup_epoch):
-            train_loss, train_psnr = self.train_one_epoch(args, epoch, warmup_epoch, warmup_lr)
+            train_loss, train_acc = self.train_one_epoch(args, epoch, warmup_epoch, warmup_lr)  # naming convention상 train_psnr이라고 해야하는데, 일일이 바꾸기 귀찮아서 그냥 train_acc이라고 그대로 사용
 
             if (epoch + 1) % self.run_config.validation_frequency == 0:
-                val_loss, val_psnr = self.validate(epoch=epoch, is_test=False)
+                val_loss, val_acc = self.validate(epoch=epoch, is_test=False)  # naming convention상 val_psnr이라고 해야하는데, 일일이 바꾸기 귀찮아서 그냥 val_acc이라고 그대로 사용
 
-            #     is_best = np.mean(val_acc) > self.best_acc
-            #     self.best_acc = max(self.best_acc, np.mean(val_acc))
-            #     val_log = 'Valid [{0}/{1}]\tloss {2:.3f}\ttop-1 acc {3:.3f} ({4:.3f})'. \
-            #         format(epoch + 1 - warmup_epoch, self.run_config.n_epochs,
-            #                np.mean(val_loss), np.mean(val_acc), self.best_acc)
-            #     val_log += '\ttop-5 acc {0:.3f}\tTrain top-1 {top1:.3f}\tloss {train_loss:.3f}\t'. \
-            #         format(np.mean(val_acc5), top1=train_top1, train_loss=train_loss)
-            #     for i_s, v_a in zip(img_size, val_acc):
-            #         val_log += '(%d, %.3f), ' % (i_s, v_a)
-            #     self.write_log(val_log, prefix='valid', should_print=False)
-            # else:
-            #     is_best = False
+                is_best = np.mean(val_acc) > self.best_acc   # naming convention상 best_psnr이라고 해야하는데, 일일이 바꾸기 귀찮아서 그냥 best_acc이라고 그대로 사용
+                self.best_acc = max(self.best_acc, np.mean(val_acc))
+                val_log = 'Valid [{0}/{1}]\tloss {2:.3f}\ttop-1 acc {3:.3f} ({4:.3f})'. \
+                    format(epoch + 1 - warmup_epoch, self.run_config.n_epochs,
+                           np.mean(val_loss), np.mean(val_acc), self.best_acc)
+                val_log += '\tTrain top-1 {top1:.3f}\tloss {train_loss:.3f}\t'. \
+                    format(top1=train_acc, train_loss=train_loss)
+                # for i_s, v_a in zip(img_size, val_acc):
+                #     val_log += '(%d, %.3f), ' % (i_s, v_a)
+                self.write_log(val_log, prefix='valid', should_print=False)
+            else:
+                is_best = False
 
-            # self.save_model({
-            #     'epoch': epoch,
-            #     'best_acc': self.best_acc,
-            #     'optimizer': self.optimizer.state_dict(),
-            #     'state_dict': self.network.state_dict(),
-            # }, is_best=is_best)
+            self.save_model({
+                'epoch': epoch,
+                'best_acc': self.best_acc,
+                'optimizer': self.optimizer.state_dict(),
+                'state_dict': self.network.state_dict(),
+            }, is_best=is_best)
 
     def reset_running_statistics(self, net=None):
         from ofa.elastic_nn.utils import set_running_statistics

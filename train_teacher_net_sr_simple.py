@@ -75,9 +75,9 @@ args = parser.parse_args()
 #         args.depth_list = '2,3,4'
 # else:
 #     raise NotImplementedError
-args.path = 'exp/sr/normal'
+args.path = 'exp/sr/mbx4_bn_mse/teacher'
 args.n_epochs = 500
-args.base_lr = 0.001
+args.base_lr = 0.001  # Default (Worked Well): 0.001
 args.warmup_epochs = 5
 args.warmup_lr = -1
 args.ks_list = '7'
@@ -87,7 +87,7 @@ args.manual_seed = 0
 
 args.lr_schedule_type = 'cosine'
 
-args.base_batch_size = 8
+args.base_batch_size = 16  # Default (Worked Well): 16
 args.valid_size = None
 
 args.opt_type = 'adam'
@@ -121,7 +121,7 @@ args.independent_distributed_sampling = False
 args.kd_ratio = 0.0
 args.kd_type = None
 
-args.num_gpus = 8
+args.num_gpus = 1
 
 
 if __name__ == '__main__':
@@ -157,7 +157,7 @@ if __name__ == '__main__':
         'momentum': args.momentum,
         'nesterov': not args.no_nesterov,
     }
-    args.init_lr = args.base_lr * num_gpus  # linearly rescale the learning rate
+    args.init_lr = args.base_lr # linearly rescale the learning rate
     if args.warmup_lr < 0:
         args.warmup_lr = args.base_lr
     args.train_batch_size = args.base_batch_size

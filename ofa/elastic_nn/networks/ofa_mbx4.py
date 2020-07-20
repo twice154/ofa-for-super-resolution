@@ -28,11 +28,11 @@ class OFAMobileNetX4(MobileNetX4):
         self.ks_list.sort()
         self.expand_ratio_list.sort()
         self.depth_list.sort()
-                    # FROM [3,64    64, 64,     64, 64,     64,64,     64, 64,     64, 64,     64,  64]
-        base_stage_width = [16,     64, 64,     64, 64,     3, 64,     64, 64,     64, 64,     256, 3]
-                         # [Unshu   ResBlock      ResCon               ResBlock      ResCon    Shu]
-                         # [2,      4,  4,      1,  1,      1, 1,      4,  4,      1,  1,      2,   1]
-                         # [   Skip,              Con,            Skip,              Con]
+                    # FROM [3,64    64, 64, 64, 64,     64, 64,     64,64,     64, 64, 64, 64,     64, 64,     64,  64]
+        base_stage_width = [16,     64, 64, 64, 64,     64, 64,     3, 64,     64, 64, 64, 64,     64, 64,     256, 3]
+                         # [Unshu   ResBlock              ResCon               ResBlock              ResCon    Shu]
+                         # [2,      4,  4,  4,  4,      1,  1,      1, 1,      4,  4,  4,  4,      1,  1,      2,   1]
+                         # [   Skip,                     Con,            Skip,                       Con]
 
         # final_expand_width = [
         #     make_divisible(base_stage_width[-2] * max(self.width_mult_list), 8) for _ in self.width_mult_list
@@ -41,15 +41,15 @@ class OFAMobileNetX4(MobileNetX4):
         #     make_divisible(base_stage_width[-1] * max(self.width_mult_list), 8) for _ in self.width_mult_list
         # ]
 
-        stride_stages = [1,     1, 1,     1, 1,     1, 1,     1, 1,     1, 1,     1, 1]
-        act_stages = ['pixelunshuffle',     'relu6', 'relu6',     None, None,     None, None,   'relu6', 'relu6',     None, None,     'pixelshuffle', None]
-        se_stages = [False,     False, False,     False, False,     False, False,     False, False,     False, False,     False, False]
+        stride_stages = [1,     1, 1, 1, 1,     1, 1,     1, 1,     1, 1, 1, 1,     1, 1,     1, 1]
+        act_stages = ['pixelunshuffle',     'relu6', 'relu6', 'relu6', 'relu6',     None, None,     None, None,   'relu6', 'relu6', 'relu6', 'relu6',     None, None,     'pixelshuffle', None]
+        se_stages = [False,     False, False, False, False,     False, False,     False, False,     False, False, False, False,     False, False,     False, False]
         if depth_list is None:
             n_block_list = [1, 2, 3, 4, 2, 3]
             self.depth_list = [4, 4]
             print('Use MobileNetV3 Depth Setting')
         else:
-            n_block_list = [2] + [max(self.depth_list)]*2 + [1]*4 + [max(self.depth_list)]*2 + [1]*2 + [2] + [1]  # 2는 pixelshuffle, pixelunshuffle의 ㅇepth
+            n_block_list = [2] + [max(self.depth_list)]*4 + [1]*4 + [max(self.depth_list)]*4 + [1]*2 + [2] + [1]  # 2는 pixelshuffle, pixelunshuffle의 depth
             # [2, 4, 4, 1, 1, 1, 1, 1, 4, 4, 1, 1, 2, 1]
         width_list = []
         for base_width in base_stage_width:
@@ -68,8 +68,8 @@ class OFAMobileNetX4(MobileNetX4):
         _block_index = 2
         feature_dim = width_list[1]  # pixelunshuffle 해서 x4 되기때문에 그냥 이렇게함
 
-        for width, n_block, s, act_func, use_se in zip(width_list[1:3], n_block_list[1:3],
-                                                       stride_stages[1:3], act_stages[1:3], se_stages[1:3]):
+        for width, n_block, s, act_func, use_se in zip(width_list[1:5], n_block_list[1:5],
+                                                       stride_stages[1:5], act_stages[1:5], se_stages[1:5]):
             self.block_group_info.append([_block_index + i for i in range(n_block)])
             _block_index += n_block
 
@@ -89,8 +89,8 @@ class OFAMobileNetX4(MobileNetX4):
         
         #################################################################################################### encoder final conv blocks
         enc_final_conv_blocks = []
-        for width, n_block, s, act_func, use_se in zip(width_list[3:6], n_block_list[3:6],
-                                                       stride_stages[3:6], act_stages[3:6], se_stages[3:6]):
+        for width, n_block, s, act_func, use_se in zip(width_list[5:8], n_block_list[5:8],
+                                                       stride_stages[5:8], act_stages[5:8], se_stages[5:8]):
             # self.block_group_info.append([_block_index + i for i in range(n_block)])
             # _block_index += n_block
 
@@ -104,13 +104,13 @@ class OFAMobileNetX4(MobileNetX4):
                 feature_dim = output_channel
 
         #################################################################################################### decoder first conv block
-        dec_first_conv_block = ConvLayer(max(feature_dim), max(width_list[6]), kernel_size=3, stride=stride_stages[6], act_func=act_stages[6], use_bn=True)
+        dec_first_conv_block = ConvLayer(max(feature_dim), max(width_list[8]), kernel_size=3, stride=stride_stages[8], act_func=act_stages[8], use_bn=True)
 
         #################################################################################################### decoder inverted residual blocks
         feature_dim = width_list[6]
 
-        for width, n_block, s, act_func, use_se in zip(width_list[7:9], n_block_list[7:9],
-                                                       stride_stages[7:9], act_stages[7:9], se_stages[7:9]):
+        for width, n_block, s, act_func, use_se in zip(width_list[9:13], n_block_list[9:13],
+                                                       stride_stages[9:13], act_stages[9:13], se_stages[9:13]):
             self.block_group_info.append([_block_index + i for i in range(n_block)])
             _block_index += n_block
 
@@ -130,8 +130,8 @@ class OFAMobileNetX4(MobileNetX4):
 
         #################################################################################################### decoder final conv blocks
         dec_final_conv_blocks = []
-        for width, n_block, s, act_func, use_se in zip(width_list[9:11], n_block_list[9:11],
-                                                       stride_stages[9:11], act_stages[9:11], se_stages[9:11]):
+        for width, n_block, s, act_func, use_se in zip(width_list[13:15], n_block_list[13:15],
+                                                       stride_stages[13:15], act_stages[13:15], se_stages[13:15]):
             # self.block_group_info.append([_block_index + i for i in range(n_block)])
             # _block_index += n_block
 
@@ -147,19 +147,19 @@ class OFAMobileNetX4(MobileNetX4):
         #################################################################################################### decoder shuffle
     # for width, n_block, s, act_func, use_se in zip(width_list[11], n_block_list[11],
     #                                                 stride_stages[11], act_stages[11], se_stages[11]):
-        self.block_group_info.append([_block_index + i for i in range(n_block_list[11])])
-        _block_index += n_block_list[11]
+        self.block_group_info.append([_block_index + i for i in range(n_block_list[15])])
+        _block_index += n_block_list[15]
 
-        output_channel = width_list[11]
-        for i in range(n_block_list[11]):
+        output_channel = width_list[15]
+        for i in range(n_block_list[15]):
             if i == 0:
-                stride = stride_stages[11]
+                stride = stride_stages[15]
             else:
                 stride = 1
-            blocks.append(ConvLayer(max(feature_dim), max(output_channel), kernel_size=3, stride=s, act_func=act_stages[11], use_bn=True))
+            blocks.append(ConvLayer(max(feature_dim), max(output_channel), kernel_size=3, stride=s, act_func=act_stages[15], use_bn=True))
 
         #################################################################################################### decoder final output conv block
-        dec_final_output_conv_block = ConvLayer(max(feature_dim), max(width_list[12]), kernel_size=3, stride=stride_stages[12], act_func=act_stages[12], use_bn=True)
+        dec_final_output_conv_block = ConvLayer(max(feature_dim), max(width_list[16]), kernel_size=3, stride=stride_stages[16], act_func=act_stages[16], use_bn=True)
 
         ####################################################################################################
         super(OFAMobileNetX4, self).__init__(blocks, enc_final_conv_blocks,
@@ -177,7 +177,7 @@ class OFAMobileNetX4(MobileNetX4):
     def name():
         return 'OFAMobileNetX4'
 
-    def forward(self, x, down_image):
+    def forward(self, x):
         ########## encoder unshuffle
         for stage_id, block_idx in enumerate(self.block_group_info[:1]):
             depth = self.runtime_depth[stage_id]
@@ -188,7 +188,7 @@ class OFAMobileNetX4(MobileNetX4):
         enc_big_skip = x
 
         ########## encoder inverted residual blocks
-        for stage_id, block_idx in enumerate(self.block_group_info[1:3]):
+        for stage_id, block_idx in enumerate(self.block_group_info[1:5]):
             depth = self.runtime_depth[stage_id]
             active_idx = block_idx[:depth]
             for idx in active_idx:
@@ -201,13 +201,12 @@ class OFAMobileNetX4(MobileNetX4):
                 x += enc_big_skip
 
         ########## decoder first conv block
-        x += down_image
         x = self.dec_first_conv_block(x)
 
         dec_big_skip = x
 
         ########## decoder inverted residual blocks
-        for stage_id, block_idx in enumerate(self.block_group_info[3:5]):
+        for stage_id, block_idx in enumerate(self.block_group_info[5:9]):
             depth = self.runtime_depth[stage_id]
             active_idx = block_idx[:depth]
             for idx in active_idx:
@@ -220,7 +219,7 @@ class OFAMobileNetX4(MobileNetX4):
                 x += dec_big_skip
 
         ########## decoder shuffle
-        for stage_id, block_idx in enumerate(self.block_group_info[5:]):
+        for stage_id, block_idx in enumerate(self.block_group_info[9:]):
             depth = self.runtime_depth[stage_id]
             active_idx = block_idx[:depth]
             for idx in active_idx:
