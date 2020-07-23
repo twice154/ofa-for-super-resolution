@@ -75,7 +75,7 @@ args = parser.parse_args()
 #         args.depth_list = '2,3,4'
 # else:
 #     raise NotImplementedError
-args.path = 'exp/sr/mbx4_bn_mse/teacher'
+args.path = 'exp/test'
 args.n_epochs = 500
 args.base_lr = 0.001  # Default (Worked Well): 0.001
 args.warmup_epochs = 5
@@ -83,6 +83,7 @@ args.warmup_lr = -1
 args.ks_list = '7'
 args.expand_list = '6'
 args.depth_list = '4'
+args.pixelshuffle_depth_list = '2'
 args.manual_seed = 0
 
 args.lr_schedule_type = 'cosine'
@@ -179,11 +180,12 @@ if __name__ == '__main__':
     args.ks_list = [int(ks) for ks in args.ks_list.split(',')]
     args.expand_list = [int(e) for e in args.expand_list.split(',')]
     args.depth_list = [int(d) for d in args.depth_list.split(',')]
+    args.pixelshuffle_depth_list = [int(pixel_d) for pixel_d in args.pixelshuffle_depth_list.split(',')]
 
     net = OFAMobileNetX4(
         bn_param=(args.bn_momentum, args.bn_eps),
         dropout_rate=args.dropout, base_stage_width=args.base_stage_width, width_mult_list=args.width_mult_list,
-        ks_list=args.ks_list, expand_ratio_list=args.expand_list, depth_list=args.depth_list
+        ks_list=args.ks_list, expand_ratio_list=args.expand_list, depth_list=args.depth_list, pixelshuffle_depth_list=args.pixelshuffle_depth_list
     )
     # teacher model
     # if args.kd_ratio > 0:

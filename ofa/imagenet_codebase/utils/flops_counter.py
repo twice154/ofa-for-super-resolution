@@ -40,7 +40,7 @@ register_hooks = {
 }
 
 
-def profile(model, input_size, custom_ops=None):
+def profile(model, input_size, custom_ops=None):  # flops 계산 제대로 안됨. 아마도 register_hooks에서 대응하지 못하는 종류의 layer가 추가되어서 그거때문에 오류나는 것으로 추정.
     handler_collection = []
     custom_ops = {} if custom_ops is None else custom_ops
 

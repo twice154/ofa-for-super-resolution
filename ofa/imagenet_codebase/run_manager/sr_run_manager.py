@@ -347,6 +347,7 @@ class SRRunManager:
                     # down_images = down_images.to(self.device)
                     # compute output
                     output = net(images)
+                    # output = net(images, down_images)
                     loss = self.test_criterion(output, images)
                     # measure accuracy and record loss
                     psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
@@ -428,6 +429,7 @@ class SRRunManager:
                     loss = loss1 + 0.4 * loss2
                 else:
                     output = self.net(images)
+                    # output = self.net(images, down_images)
                     loss = self.train_criterion(output, images)
 
                 if args.teacher_model is None:

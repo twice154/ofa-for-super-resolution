@@ -15,7 +15,7 @@ from ofa.imagenet_codebase.networks.proxyless_nets import MobileInvertedResidual
 class MobileNetX4(MyNetwork):
 
     def __init__(self, blocks, enc_final_conv_blocks,
-                dec_first_conv_block, dec_final_conv_blocks, dec_final_output_conv_block):
+                dec_first_conv_block, dec_final_conv_blocks, dec_final_output_conv_block, runtime_depth):
         super(MobileNetX4, self).__init__()
 
         self.blocks = nn.ModuleList(blocks)
@@ -23,6 +23,8 @@ class MobileNetX4(MyNetwork):
         self.dec_first_conv_block = dec_first_conv_block
         self.dec_final_conv_blocks = nn.ModuleList(dec_final_conv_blocks)
         self.dec_final_output_conv_block = dec_final_output_conv_block
+
+        self.runtime_depth = runtime_depth
 
     def forward(self, x):
         return x

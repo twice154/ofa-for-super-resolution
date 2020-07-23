@@ -78,7 +78,7 @@ def count_net_flops(net, data_shape=(1, 3, 224, 224)):
 
     net = copy.deepcopy(net)
     
-    flop, _ = profile(net, data_shape)
+    flop, _ = profile(net, data_shape)  # profile에서 flops 계산이 제대로 안되고 있음 (depth가 고정되어있는 일반 convolution 부분만 flops에 포함됨)
     return flop
 
 

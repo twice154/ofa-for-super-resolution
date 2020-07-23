@@ -16,18 +16,20 @@ from ofa.imagenet_codebase.utils import make_divisible, int2list
 class OFAMobileNetX4(MobileNetX4):
 
     def __init__(self, bn_param=(0.1, 1e-5), dropout_rate=0.1, base_stage_width=None,
-                 width_mult_list=1.0, ks_list=3, expand_ratio_list=6, depth_list=4):
+                 width_mult_list=1.0, ks_list=3, expand_ratio_list=6, depth_list=4, pixelshuffle_depth_list=2):
 
         self.width_mult_list = int2list(width_mult_list, 1)  # 이게 output width 조절하는 변수
         self.ks_list = int2list(ks_list, 1)
         self.expand_ratio_list = int2list(expand_ratio_list, 1)
         self.depth_list = int2list(depth_list, 1)
+        self.pixelshuffle_depth_list = int2list(pixelshuffle_depth_list, 1)
         self.base_stage_width = base_stage_width
 
         self.width_mult_list.sort()
         self.ks_list.sort()
         self.expand_ratio_list.sort()
         self.depth_list.sort()
+        self.pixelshuffle_depth_list.sort()
                     # FROM [3,64    64, 64, 64, 64,     64, 64,     64,64,     64, 64, 64, 64,     64, 64,     64,  64]
         base_stage_width = [16,     64, 64, 64, 64,     64, 64,     3, 64,     64, 64, 64, 64,     64, 64,     256, 3]
                          # [Unshu   ResBlock              ResCon               ResBlock              ResCon    Shu]
@@ -49,7 +51,7 @@ class OFAMobileNetX4(MobileNetX4):
             self.depth_list = [4, 4]
             print('Use MobileNetV3 Depth Setting')
         else:
-            n_block_list = [2] + [max(self.depth_list)]*4 + [1]*4 + [max(self.depth_list)]*4 + [1]*2 + [2] + [1]  # 2는 pixelshuffle, pixelunshuffle의 depth
+            n_block_list = [max(self.pixelshuffle_depth_list)] + [max(self.depth_list)]*4 + [1]*4 + [max(self.depth_list)]*4 + [1]*2 + [max(self.pixelshuffle_depth_list)] + [1]  # 2는 pixelshuffle, pixelunshuffle의 depth
             # [2, 4, 4, 1, 1, 1, 1, 1, 4, 4, 1, 1, 2, 1]
         width_list = []
         for base_width in base_stage_width:
@@ -162,14 +164,14 @@ class OFAMobileNetX4(MobileNetX4):
         dec_final_output_conv_block = ConvLayer(max(feature_dim), max(width_list[16]), kernel_size=3, stride=stride_stages[16], act_func=act_stages[16], use_bn=True)
 
         ####################################################################################################
+        # runtime_depth
+        self.runtime_depth = [len(block_idx) for block_idx in self.block_group_info]
+
         super(OFAMobileNetX4, self).__init__(blocks, enc_final_conv_blocks,
-                                            dec_first_conv_block, dec_final_conv_blocks, dec_final_output_conv_block)
+                                            dec_first_conv_block, dec_final_conv_blocks, dec_final_output_conv_block, self.runtime_depth)
 
         # set bn param
         self.set_bn_param(momentum=bn_param[0], eps=bn_param[1])
-
-        # runtime_depth
-        self.runtime_depth = [len(block_idx) for block_idx in self.block_group_info]
 
     """ MyNetwork required methods """
 
@@ -201,6 +203,7 @@ class OFAMobileNetX4(MobileNetX4):
                 x += enc_big_skip
 
         ########## decoder first conv block
+        # x += down_image
         x = self.dec_first_conv_block(x)
 
         dec_big_skip = x
@@ -233,42 +236,42 @@ class OFAMobileNetX4(MobileNetX4):
 
     @property
     def module_str(self):
-        _str = self.enc_first_conv.module_str + '\n'
-        _str += self.enc_input_skip_conn.module_str + '\n'
-        for block in self.enc_final_conv_blocks:
-            _str += block.module_str + '\n'
-        
+        _str = ''
         for stage_id, block_idx in enumerate(self.block_group_info):
             depth = self.runtime_depth[stage_id]
             active_idx = block_idx[:depth]
             for idx in active_idx:
                 _str += self.blocks[idx].module_str + '\n'
 
-        _str += self.dec_first_conv.module_str + '\n'
-        _str += self.dec_input_skip_conn.module_str + '\n'
+        for block in self.enc_final_conv_blocks:
+            _str += block.module_str + '\n'
+
+        _str += self.dec_first_conv_block.module_str + '\n'
+
         for block in self.dec_final_conv_blocks:
             _str += block.module_str + '\n'
         
+        _str += self.dec_final_output_conv_block.module_str + '\n'
+
         return _str
+
 
     @property
     def config(self):
         return {
             'name': OFAMobileNetX4.__name__,
-            # 'bn': self.get_bn_param(),
-            # 'enc_first_conv': self.enc_first_conv.config,
-            # 'enc_input_skip_conn': self.enc_input_skip_conn.config,
-            # 'enc_final_conv_blocks': [
-            #     block.config for block in self.enc_final_conv_blocks
-            # ],
-            # 'blocks': [
-            #     block.config for block in self.blocks
-            # ],
-            # 'dec_first_conv': self.dec_first_conv.config,
-            # 'dec_input_skip_conn': self.dec_input_skip_conn.config,
-            # 'dec_final_conv_blocks': [
-            #     block.config for block in self.dec_final_conv_blocks
-            # ],
+            'bn': self.get_bn_params(),
+            'blocks': [
+                block.config for block in self.blocks
+            ],
+            'enc_final_conv_blocks': [
+                block.config for block in self.enc_final_conv_blocks
+            ],
+            'dec_first_conv_block': self.dec_first_conv_block.config,
+            'dec_final_conv_blocks': [
+                block.config for block in self.dec_final_conv_blocks
+            ],
+            'dec_final_output_conv_block': self.dec_final_output_conv_block.config,
         }
 
 
@@ -303,18 +306,35 @@ class OFAMobileNetX4(MobileNetX4):
 
     """ set, sample and get active sub-networks """
 
-    def set_active_subnet(self, wid=None, ks=None, e=None, d=None):
-        width_mult_id = int2list(wid, 4 + len(self.block_group_info))
-        ks = int2list(ks, len(self.blocks) - 1)
-        expand_ratio = int2list(e, len(self.blocks) - 1)
-        depth = int2list(d, len(self.block_group_info))
+    def set_active_subnet(self, wid=None, ks=None, e=None, d=None, pixel_d=None):
+        # width_mult_id = int2list(wid, 4 + len(self.block_group_info))
+        # ks = int2list(ks, len(self.blocks) - 1)
+        # expand_ratio = int2list(e, len(self.blocks) - 1)
+        # depth = int2list(d, len(self.block_group_info) - 2)
 
-        for block, k, e in zip(self.blocks[1:], ks, expand_ratio):
+        # for block, k, e in zip(self.blocks[1:], ks, expand_ratio):
+        #     if k is not None:
+        #         block.mobile_inverted_conv.active_kernel_size = k
+        #     if e is not None:
+        #         block.mobile_inverted_conv.active_expand_ratio = e
+
+        # for i, d in enumerate(depth):
+        #     if d is not None:
+        #         self.runtime_depth[i] = min(len(self.block_group_info[i]), d)
+        ks = int2list(ks, len(self.blocks) - 4)
+        expand_ratio = int2list(e, len(self.blocks) - 4)
+        depth = int2list(d, len(self.block_group_info) - 2)
+        pixelshuffle_depth = int2list(pixel_d, 2)
+
+        depth.insert(0, pixelshuffle_depth[0])
+        depth.insert(-1, pixelshuffle_depth[0])
+
+        for block, k, e in zip(self.blocks[2:-2], ks, expand_ratio):
             if k is not None:
                 block.mobile_inverted_conv.active_kernel_size = k
             if e is not None:
                 block.mobile_inverted_conv.active_expand_ratio = e
-
+        
         for i, d in enumerate(depth):
             if d is not None:
                 self.runtime_depth[i] = min(len(self.block_group_info[i]), d)
@@ -328,6 +348,8 @@ class OFAMobileNetX4(MobileNetX4):
             self.__dict__['_ks_include_list'] = include_list.copy()
         elif constraint_type == 'width_mult':
             self.__dict__['_widthMult_include_list'] = include_list.copy()
+        elif constraint_type == 'pixelshuffle_depth':
+            self.__dict__['_pixelshuffleDepth_include_list'] = include_list.copy()
         else:
             raise NotImplementedError
 
@@ -336,14 +358,18 @@ class OFAMobileNetX4(MobileNetX4):
         self.__dict__['_expand_include_list'] = None
         self.__dict__['_ks_include_list'] = None
         self.__dict__['_widthMult_include_list'] = None
+        self.__dict__['_pixelshuffleDepth_include_list'] = None
 
     def sample_active_subnet(self):
+        # self.blocks, self.block_group_info 두 개만 shrinking에 포함되는 block들에 대한 정보를 가지고 있다 
         ks_candidates = self.ks_list if self.__dict__.get('_ks_include_list', None) is None \
             else self.__dict__['_ks_include_list']
         expand_candidates = self.expand_ratio_list if self.__dict__.get('_expand_include_list', None) is None \
             else self.__dict__['_expand_include_list']
         depth_candidates = self.depth_list if self.__dict__.get('_depth_include_list', None) is None else \
             self.__dict__['_depth_include_list']
+        pixelshuffle_depth_candidates = self.pixelshuffle_depth_list if self.__dict__.get('_pixelshuffleDepth_include_list', None) is None else \
+            self.__dict__['_pixelshuffleDepth_include_list']
 
         # sample width_mult
         width_mult_setting = None
@@ -351,7 +377,7 @@ class OFAMobileNetX4(MobileNetX4):
         # sample kernel size
         ks_setting = []
         if not isinstance(ks_candidates[0], list):
-            ks_candidates = [ks_candidates for _ in range(len(self.blocks) - 1)]
+            ks_candidates = [ks_candidates for _ in range(len(self.blocks) - 4)]  # (length of self.blocks) - (number of pixelshuffles)
         for k_set in ks_candidates:
             k = random.choice(k_set)
             ks_setting.append(k)
@@ -359,7 +385,7 @@ class OFAMobileNetX4(MobileNetX4):
         # sample expand ratio
         expand_setting = []
         if not isinstance(expand_candidates[0], list):
-            expand_candidates = [expand_candidates for _ in range(len(self.blocks) - 1)]
+            expand_candidates = [expand_candidates for _ in range(len(self.blocks) - 4)]  # (length of self.blocks) - (number of pixelshuffles)
         for e_set in expand_candidates:
             e = random.choice(e_set)
             expand_setting.append(e)
@@ -367,20 +393,30 @@ class OFAMobileNetX4(MobileNetX4):
         # sample depth
         depth_setting = []
         if not isinstance(depth_candidates[0], list):
-            depth_candidates = [depth_candidates for _ in range(len(self.block_group_info))]
+            depth_candidates = [depth_candidates for _ in range(len(self.block_group_info) - 2)]  # (length of self.block_group_info) - (number of pixelshuffle groups)
         for d_set in depth_candidates:
             d = random.choice(d_set)
             depth_setting.append(d)
+        
+        # sample pixelshuffle depth
+        pixelshuffle_depth_setting = []
+        if not isinstance(pixelshuffle_depth_candidates[0], list):
+            pixelshuffle_depth_candidates = [pixelshuffle_depth_candidates for _ in range(1)]  # (number of pixelshuffle groups) -> 1 because of mirroring
+        for pixel_d_set in pixelshuffle_depth_candidates:
+            pixel_d = random.choice(pixel_d_set)
+            pixelshuffle_depth_setting.append(pixel_d)
 
-        self.set_active_subnet(width_mult_setting, ks_setting, expand_setting, depth_setting)
+        self.set_active_subnet(width_mult_setting, ks_setting, expand_setting, depth_setting, pixelshuffle_depth_setting)
 
         return {
             'wid': width_mult_setting,
             'ks': ks_setting,
             'e': expand_setting,
             'd': depth_setting,
+            'pixel_d': pixelshuffle_depth_setting,
         }
 
+#################################################################################################### 이 부분은 Network Specific하게 뽑아내서 Inference 할 때, 즉 굳이 사용할 필요없다
     def get_active_subnet(self, preserve_weight=True):
         first_conv = copy.deepcopy(self.first_conv)
         blocks = [copy.deepcopy(self.blocks[0])]

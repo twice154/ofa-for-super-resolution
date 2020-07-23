@@ -11,18 +11,17 @@ import time
 
 import torch
 import torch.nn.functional as F
-# import horovod.torch as hvd
+import horovod.torch as hvd
 
-from ofa.utils import accuracy, AverageMeter, download_url, psnr
-from ofa.imagenet_codebase.utils import list_mean, cross_entropy_loss_with_soft_target, \
+from ofa.utils import accuracy, AverageMeter, download_url
+from ofa.imagenet_codebase.utils import DistributedMetric, list_mean, cross_entropy_loss_with_soft_target, \
     subset_mean, int2list
 from ofa.imagenet_codebase.data_providers.base_provider import MyRandomResizedCrop
-# from ofa.imagenet_codebase.run_manager.distributed_run_manager import DistributedRunManager
-from ofa.imagenet_codebase.run_manager.sr_run_manager import SRRunManager
+from ofa.imagenet_codebase.run_manager.distributed_run_manager import DistributedRunManager
 
 
 def validate(run_manager, epoch=0, is_test=True, image_size_list=None,
-             width_mult_list=None, ks_list=None, expand_ratio_list=None, depth_list=None, pixelshuffle_depth_list=None, additional_setting=None):
+             width_mult_list=None, ks_list=None, expand_ratio_list=None, depth_list=None, additional_setting=None):
     dynamic_net = run_manager.net
     if isinstance(dynamic_net, nn.DataParallel):
         dynamic_net = dynamic_net.module
@@ -39,46 +38,40 @@ def validate(run_manager, epoch=0, is_test=True, image_size_list=None,
         expand_ratio_list = dynamic_net.expand_ratio_list
     if depth_list is None:
         depth_list = dynamic_net.depth_list
-    if pixelshuffle_depth_list is None:
-        pixelshuffle_depth_list = dynamic_net.pixelshuffle_depth_list
 
     subnet_settings = []
-    for pixel_d in pixelshuffle_depth_list:
-        for w in width_mult_list:
-                for d in depth_list:
-                    for e in expand_ratio_list:
-                        for k in ks_list:
-                            # for img_size in image_size_list:
-                            subnet_settings.append([{
-                                # 'image_size': img_size,
-                                'pixel_d': pixel_d,
-                                'wid': w,
-                                'd': d,
-                                'e': e,
-                                'ks': k,
-                            }, 'PD%s-W%s-D%s-E%s-K%s' % (pixel_d, w, d, e, k)])
+    for w in width_mult_list:
+        for d in depth_list:
+            for e in expand_ratio_list:
+                for k in ks_list:
+                    for img_size in image_size_list:
+                        subnet_settings.append([{
+                            'image_size': img_size,
+                            'wid': w,
+                            'd': d,
+                            'e': e,
+                            'ks': k,
+                        }, 'R%s-W%s-D%s-E%s-K%s' % (img_size, w, d, e, k)])
     if additional_setting is not None:
         subnet_settings += additional_setting
 
-    # losses_of_subnets, top1_of_subnets, top5_of_subnets = [], [], []
-    losses_of_subnets, psnr_of_subnets = [], []
+    losses_of_subnets, top1_of_subnets, top5_of_subnets = [], [], []
 
     valid_log = ''
     for setting, name in subnet_settings:
         run_manager.write_log('-' * 30 + ' Validate %s ' % name + '-' * 30, 'train', should_print=False)
-        # run_manager.run_config.data_provider.assign_active_img_size(setting.pop('image_size'))
+        run_manager.run_config.data_provider.assign_active_img_size(setting.pop('image_size'))
         dynamic_net.set_active_subnet(**setting)
         run_manager.write_log(dynamic_net.module_str, 'train', should_print=False)
 
         run_manager.reset_running_statistics(dynamic_net)
-        loss, psnr = run_manager.validate(epoch=epoch, is_test=is_test, run_str=name, net=dynamic_net)
+        loss, top1, top5 = run_manager.validate(epoch=epoch, is_test=is_test, run_str=name, net=dynamic_net)
         losses_of_subnets.append(loss)
-        # top1_of_subnets.append(top1)
-        # top5_of_subnets.append(top5)
-        psnr_of_subnets.append(psnr)
-        valid_log += '%s (%.3f), ' % (name, psnr)
+        top1_of_subnets.append(top1)
+        top5_of_subnets.append(top5)
+        valid_log += '%s (%.3f), ' % (name, top1)
 
-    return list_mean(losses_of_subnets), list_mean(psnr_of_subnets), valid_log
+    return list_mean(losses_of_subnets), list_mean(top1_of_subnets), list_mean(top5_of_subnets), valid_log
 
 
 def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
@@ -87,24 +80,20 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
     # switch to train mode
     dynamic_net.train()
     run_manager.run_config.train_loader.sampler.set_epoch(epoch)
-    # MyRandomResizedCrop.EPOCH = epoch
+    MyRandomResizedCrop.EPOCH = epoch
 
     nBatch = len(run_manager.run_config.train_loader)
 
     data_time = AverageMeter()
-    # losses = DistributedMetric('train_loss')
-    # top1 = DistributedMetric('train_top1')
-    # top5 = DistributedMetric('train_top5')
-    losses = AverageMeter()
-    psnr_averagemeter = AverageMeter()
+    losses = DistributedMetric('train_loss')
+    top1 = DistributedMetric('train_top1')
+    top5 = DistributedMetric('train_top5')
 
     with tqdm(total=nBatch,
               desc='Train Epoch #{}'.format(epoch + 1),
               disable=not run_manager.is_root) as t:
         end = time.time()
-        for i, mini_batch in enumerate(run_manager.run_config.train_loader):
-            images = mini_batch['image']
-            # down_images = mini_batch['down_image']
+        for i, (images, labels) in enumerate(run_manager.run_config.train_loader):
             data_time.update(time.time() - end)
             if epoch < warmup_epochs:
                 new_lr = run_manager.run_config.warmup_adjust_learning_rate(
@@ -115,8 +104,8 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
                     run_manager.optimizer, epoch - warmup_epochs, i, nBatch
                 )
 
-            images = images.cuda()
-            target = images
+            images, labels = images.cuda(), labels.cuda()
+            target = labels
 
             # soft target
             if args.kd_ratio > 0:
@@ -128,7 +117,7 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
             # clear gradients
             run_manager.optimizer.zero_grad()
 
-            loss_of_subnets, psnr_of_subnets = [], []
+            loss_of_subnets, acc1_of_subnets, acc5_of_subnets = [], [], []
             # compute output
             subnet_str = ''
             for _ in range(args.dynamic_batch_size):
@@ -146,8 +135,8 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
 
                 output = run_manager.net(images)
                 if args.kd_ratio == 0:
-                    loss = run_manager.train_criterion(output, images)
-                    loss_type = 'mse'
+                    loss = run_manager.train_criterion(output, labels)
+                    loss_type = 'ce'
                 else:
                     if args.kd_type == 'ce':
                         kd_loss = cross_entropy_loss_with_soft_target(output, soft_label)
@@ -158,26 +147,22 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
                     loss_type = '%.1fkd-%s & ce' % (args.kd_ratio, args.kd_type)
 
                 # measure accuracy and record loss
-                # acc1, acc5 = accuracy(output, target, topk=(1, 5))
-                psnr = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
+                acc1, acc5 = accuracy(output, target, topk=(1, 5))
                 loss_of_subnets.append(loss)
-                # acc1_of_subnets.append(acc1[0])
-                # acc5_of_subnets.append(acc5[0])
-                psnr_of_subnets.append(psnr[0])
+                acc1_of_subnets.append(acc1[0])
+                acc5_of_subnets.append(acc5[0])
 
                 loss.backward()
             run_manager.optimizer.step()
 
             losses.update(list_mean(loss_of_subnets), images.size(0))
-            # top1.update(list_mean(acc1_of_subnets), images.size(0))
-            # top5.update(list_mean(acc5_of_subnets), images.size(0))
-            psnr_averagemeter.update(list_mean(psnr_of_subnets), images.size(0))
+            top1.update(list_mean(acc1_of_subnets), images.size(0))
+            top5.update(list_mean(acc5_of_subnets), images.size(0))
 
             t.set_postfix({
                 'loss': losses.avg.item(),
-                # 'top1': top1.avg.item(),
-                # 'top5': top5.avg.item(),
-                'psnr': psnr_averagemeter.avg.item(),
+                'top1': top1.avg.item(),
+                'top5': top5.avg.item(),
                 'R': images.size(2),
                 'lr': new_lr,
                 'loss_type': loss_type,
@@ -187,7 +172,7 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
             })
             t.update(1)
             end = time.time()
-    return losses.avg.item(), psnr_averagemeter.avg.item()
+    return losses.avg.item(), top1.avg.item(), top5.avg.item()
 
 
 def train(run_manager, args, validate_func=None):
@@ -195,12 +180,12 @@ def train(run_manager, args, validate_func=None):
         validate_func = validate
 
     for epoch in range(run_manager.start_epoch, run_manager.run_config.n_epochs + args.warmup_epochs):
-        train_loss, train_top1 = train_one_epoch(
+        train_loss, train_top1, train_top5 = train_one_epoch(
             run_manager, args, epoch, args.warmup_epochs, args.warmup_lr)
 
         if (epoch + 1) % args.validation_frequency == 0:
             # validate under train mode
-            val_loss, val_acc, _val_log = validate_func(run_manager, epoch=epoch, is_test=True)
+            val_loss, val_acc, val_acc5, _val_log = validate_func(run_manager, epoch=epoch, is_test=True)
             # best_acc
             is_best = val_acc > run_manager.best_acc
             run_manager.best_acc = max(run_manager.best_acc, val_acc)
@@ -223,8 +208,6 @@ def train(run_manager, args, validate_func=None):
 def load_models(run_manager, dynamic_net, model_path=None):
     # specify init path
     init = torch.load(model_path, map_location='cpu')['state_dict']
-    if isinstance(dynamic_net, nn.DataParallel):
-        dynamic_net = dynamic_net.module
     dynamic_net.load_weights_from_net(init)
     run_manager.write_log('Loaded init from %s' % model_path, 'valid')
 
@@ -356,51 +339,3 @@ def supporting_elastic_expand(train_func, run_manager, args, validate_func_dict)
         json.dump(stage_info, open(stage_info_path, 'w'), indent=4)
         validate_func_dict['expand_ratio_list'] = sorted(dynamic_net.expand_ratio_list)
         run_manager.write_log('%.3f\t%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
-
-
-import math
-from PIL import Image
-import numpy as np
-import torch
-from torchvision.utils import make_grid
-
-"""
-Converts a Tensor into an image Numpy array
-Input should be either in 4D(B,(3/1),H,W), 3D(C,H,W), or 2D(H,W)
-If input is in 4D, it is splited along the first dimension to provide grid view.
-Otherwise, the tensor is assume to be single image.
-Input type: float [-1, 1] (default)
-Output type: np.uint8 [0,255] (default)
-Output dim: 3D(H,W,C) (for 4D and 3D input) or 2D(H,W) (for 2D input)
-"""
-def tensor2img_np(tensor, out_type=np.uint8, min_max=(0,1)):
-    tensor = tensor.float().cpu().clamp_(*min_max) # Clamp is for on hard_tanh
-    tensor = (tensor - min_max[0]) / (min_max[1] - min_max[0])
-    n_dim = tensor.dim()
-    if n_dim == 4:
-        n_img = len(tensor)
-        img_np = make_grid(tensor, nrow=int(math.sqrt(n_img)), normalize=False).detach().numpy()
-        img_np = np.transpose(img_np, (1, 2, 0))
-    elif n_dim == 3:
-        img_np = tensor.numpy()
-        img_np = np.transpose(img_np, (1, 2, 0))
-    elif n_dim == 2:
-        img_np = tensor.numpy()
-    else:
-        raise TypeError('Only support 4D, 3D and 2D tensor. But receieved tensor with dimension = %d' % n_dim)
-    if out_type == np.uint8:
-        img_np = (img_np * 255.0).round() # This is important. Unlike matlab, numpy.unit8() WILL NOT round by default.
-    return img_np.astype(out_type)
-
-def rgb2gray(img):
-    in_img_type = img.dtype
-    img.astype(np.float64)
-    img_gray = np.dot(img[...,:3], [0.299, 0.587, 0.114]).round()
-    return img_gray.astype(in_img_type)
-
-def rgb2y(img):
-    assert(img.dtype == np.uint8)
-    in_img_type = img.dtype
-    img.astype(np.float64)
-    img_y = ((np.dot(img[...,:3], [65.481, 128.553, 24.966])) / 255.0 + 16.0).round()
-    return img_y.astype(in_img_type)
