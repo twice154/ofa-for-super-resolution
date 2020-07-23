@@ -67,7 +67,12 @@ def validate(run_manager, epoch=0, is_test=True, image_size_list=None,
     for setting, name in subnet_settings:
         run_manager.write_log('-' * 30 + ' Validate %s ' % name + '-' * 30, 'train', should_print=False)
         # run_manager.run_config.data_provider.assign_active_img_size(setting.pop('image_size'))
+
+        # Random Sampling과 Structured Sampling중에 주석 바꿔가면서 고르면 됨
+        # dynamic_net.sample_active_subnet()
         dynamic_net.set_active_subnet(**setting)
+        
+        
         run_manager.write_log(dynamic_net.module_str, 'train', should_print=False)
 
         run_manager.reset_running_statistics(dynamic_net)
@@ -246,15 +251,17 @@ def supporting_elastic_depth(train_func, run_manager, args, validate_func_dict):
     validate_func_dict['depth_list'] = sorted(dynamic_net.depth_list)
 
     if args.phase == 1:
-        model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K357',
-                                  model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+        # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K357',
+        #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
         load_models(run_manager, dynamic_net, model_path=model_path)
     else:
-        model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D34_E6_K357',
-                                  model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+        # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D34_E6_K357',
+        #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
         load_models(run_manager, dynamic_net, model_path=model_path)
     # validate after loading weights
-    run_manager.write_log('%.3f\t%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
+    run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
         
     depth_stage_list = dynamic_net.depth_list.copy()
     depth_stage_list.sort(reverse=True)
@@ -290,7 +297,7 @@ def supporting_elastic_depth(train_func, run_manager, args, validate_func_dict):
         run_manager.save_model(model_name='depth_stage%d.pth.tar' % stage_info['stage'])
         json.dump(stage_info, open(stage_info_path, 'w'), indent=4)
         validate_func_dict['depth_list'] = sorted(dynamic_net.depth_list)
-        run_manager.write_log('%.3f\t%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
+        run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
 
 
 def supporting_elastic_expand(train_func, run_manager, args, validate_func_dict):
@@ -309,15 +316,17 @@ def supporting_elastic_expand(train_func, run_manager, args, validate_func_dict)
     validate_func_dict['expand_ratio_list'] = sorted(dynamic_net.expand_ratio_list)
 
     if args.phase == 1:
-        model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D234_E6_K357',
-                                  model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+        # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D234_E6_K357',
+        #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
         load_models(run_manager, dynamic_net, model_path=model_path)
     else:
-        model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D234_E46_K357',
-                                  model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+        # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D234_E46_K357',
+        #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
         load_models(run_manager, dynamic_net, model_path=model_path)
     dynamic_net.re_organize_middle_weights()
-    run_manager.write_log('%.3f\t%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
+    run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
     
     expand_stage_list = dynamic_net.expand_ratio_list.copy()
     expand_stage_list.sort(reverse=True)
@@ -356,7 +365,7 @@ def supporting_elastic_expand(train_func, run_manager, args, validate_func_dict)
         run_manager.save_model(model_name='expand_stage%d.pth.tar' % stage_info['stage'])
         json.dump(stage_info, open(stage_info_path, 'w'), indent=4)
         validate_func_dict['expand_ratio_list'] = sorted(dynamic_net.expand_ratio_list)
-        run_manager.write_log('%.3f\t%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
+        run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
 
 
 import math

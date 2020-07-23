@@ -507,5 +507,5 @@ class OFAMobileNetX4(MobileNetX4):
     """ Width Related Methods """
 
     def re_organize_middle_weights(self, expand_ratio_stage=0):
-        for block in self.blocks[1:]:
+        for block in self.blocks[2:-2]:
             block.mobile_inverted_conv.re_organize_middle_weights(expand_ratio_stage)

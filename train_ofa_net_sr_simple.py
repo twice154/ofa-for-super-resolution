@@ -19,10 +19,10 @@ from ofa.utils import download_url
 from ofa.elastic_nn.training.progressive_shrinking import load_models
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--task', type=str, default='kernel', choices=[
-    'kernel', 'depth', 'expand',
+parser.add_argument('--task', type=str, default='pixelshuffle_depth', choices=[
+    'kernel', 'depth', 'expand', 'pixelshuffle_depth'
 ])
-parser.add_argument('--phase', type=int, default=1, choices=[1, 2])
+parser.add_argument('--phase', type=int, default=2, choices=[1, 2])
 
 args = parser.parse_args()
 if args.task == 'kernel':
@@ -78,6 +78,17 @@ elif args.task == 'expand':
         args.expand_list = '3,4,6'
         args.depth_list = '2,3,4'
         args.pixelshuffle_depth_list = '2'
+elif args.task == 'pixelshuffle_depth':
+    args.path = 'exp/normal2kernel'
+    args.dynamic_batch_size = 1
+    args.n_epochs = 120
+    args.base_lr = 3e-2
+    args.warmup_epochs = 5
+    args.warmup_lr = -1
+    args.ks_list = '7'
+    args.expand_list = '6'
+    args.depth_list = '4'
+    args.pixelshuffle_depth_list = '1,2'
 else:
     raise NotImplementedError
 args.manual_seed = 0
@@ -217,7 +228,8 @@ if __name__ == '__main__':
                           'width_mult_list': sorted({0, len(args.width_mult_list) - 1}),
                           'ks_list': sorted({min(args.ks_list), max(args.ks_list)}),
                           'expand_ratio_list': sorted({min(args.expand_list), max(args.expand_list)}),
-                          'depth_list': sorted({min(net.depth_list), max(net.depth_list)})}
+                          'depth_list': sorted({min(net.depth_list), max(net.depth_list)}),
+                          'pixelshuffle_depth_list': sorted({min(net.pixelshuffle_depth_list), max(net.pixelshuffle_depth_list)}),}
     if args.task == 'kernel':
         validate_func_dict['ks_list'] = sorted(args.ks_list)
         if run_manager.start_epoch == 0:
@@ -229,9 +241,20 @@ if __name__ == '__main__':
                                               validate(run_manager, **validate_func_dict), 'valid')
         train(run_manager, args,
               lambda _run_manager, epoch, is_test: validate(_run_manager, epoch, is_test, **validate_func_dict))
-    # elif args.task == 'depth':
-    #     from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_depth
-    #     supporting_elastic_depth(train, distributed_run_manager, args, validate_func_dict)
-    # else:
-    #     from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_expand
-    #     supporting_elastic_expand(train, distributed_run_manager, args, validate_func_dict)
+    elif args.task == 'depth':
+        from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_depth
+        supporting_elastic_depth(train, run_manager, args, validate_func_dict)
+    elif args.task == 'expand':
+        from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_expand
+        supporting_elastic_expand(train, run_manager, args, validate_func_dict)
+    elif args.task == 'pixelshuffle_depth':
+        validate_func_dict['pixelshuffle_depth_list'] = sorted(args.pixelshuffle_depth_list)
+        if run_manager.start_epoch == 0:
+            # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K7',
+            #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+            model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
+            load_models(run_manager, run_manager.net, model_path=model_path)
+            run_manager.write_log('%.3f\t%.3f\t%s' %
+                                              validate(run_manager, **validate_func_dict), 'valid')
+        train(run_manager, args,
+              lambda _run_manager, epoch, is_test: validate(_run_manager, epoch, is_test, **validate_func_dict))
