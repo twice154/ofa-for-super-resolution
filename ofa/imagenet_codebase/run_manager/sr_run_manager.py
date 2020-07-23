@@ -135,7 +135,7 @@ class RunConfig:
 
 class SRRunManager:
 
-    def __init__(self, path, net, run_config: RunConfig, init=True, measure_latency=None, no_gpu=False, mix_prec=None):
+    def __init__(self, path, net, run_config: RunConfig, init=True, measure_latency=None, no_gpu=False, mix_prec=None, num_gpus=None):
         self.path = path
         self.net = net
         self.run_config = run_config
@@ -194,7 +194,8 @@ class SRRunManager:
             from apex import amp
             self.network, self.optimizer = amp.initialize(self.network, self.optimizer, opt_level=mix_prec)
 
-        self.net = torch.nn.DataParallel(self.net)
+        if num_gpus > 1:
+            self.net = torch.nn.DataParallel(self.net)
 
     """ save path and log path """
 
@@ -308,9 +309,9 @@ class SRRunManager:
 
     def save_config(self):
         """ dump run_config and net_config to the model_folder """
-        net_save_path = os.path.join(self.path, 'net.config')
-        json.dump(self.network.config, open(net_save_path, 'w'), indent=4)
-        print('Network configs dump to %s' % net_save_path)
+        # net_save_path = os.path.join(self.path, 'net.config')
+        # json.dump(self.network.config, open(net_save_path, 'w'), indent=4)
+        # print('Network configs dump to %s' % net_save_path)
 
         run_save_path = os.path.join(self.path, 'run.config')
         json.dump(self.run_config.config, open(run_save_path, 'w'), indent=4)
@@ -505,7 +506,8 @@ class SRRunManager:
         from ofa.elastic_nn.utils import set_running_statistics
         if net is None:
             net = self.network
-        sub_train_loader = self.run_config.random_sub_train_loader(2000, 100)
+        # sub_train_loader = self.run_config.random_sub_train_loader(2000, 100)
+        sub_train_loader = self.run_config.train_loader
         set_running_statistics(net, sub_train_loader)
 
 

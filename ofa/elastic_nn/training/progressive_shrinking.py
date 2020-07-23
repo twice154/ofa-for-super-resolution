@@ -83,10 +83,12 @@ def validate(run_manager, epoch=0, is_test=True, image_size_list=None,
 
 def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
     dynamic_net = run_manager.net
+    if isinstance(dynamic_net, nn.DataParallel):
+        dynamic_net = dynamic_net.module
 
     # switch to train mode
     dynamic_net.train()
-    run_manager.run_config.train_loader.sampler.set_epoch(epoch)
+    # run_manager.run_config.train_loader.sampler.set_epoch(epoch)
     # MyRandomResizedCrop.EPOCH = epoch
 
     nBatch = len(run_manager.run_config.train_loader)
@@ -99,8 +101,7 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
     psnr_averagemeter = AverageMeter()
 
     with tqdm(total=nBatch,
-              desc='Train Epoch #{}'.format(epoch + 1),
-              disable=not run_manager.is_root) as t:
+              desc='Train Epoch #{}'.format(epoch + 1)) as t:
         end = time.time()
         for i, mini_batch in enumerate(run_manager.run_config.train_loader):
             images = mini_batch['image']
@@ -159,11 +160,11 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
 
                 # measure accuracy and record loss
                 # acc1, acc5 = accuracy(output, target, topk=(1, 5))
-                psnr = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
+                psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
                 loss_of_subnets.append(loss)
                 # acc1_of_subnets.append(acc1[0])
                 # acc5_of_subnets.append(acc5[0])
-                psnr_of_subnets.append(psnr[0])
+                psnr_of_subnets.append(psnr_current)
 
                 loss.backward()
             run_manager.optimizer.step()
@@ -177,7 +178,7 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
                 'loss': losses.avg.item(),
                 # 'top1': top1.avg.item(),
                 # 'top5': top5.avg.item(),
-                'psnr': psnr_averagemeter.avg.item(),
+                'psnr': psnr_averagemeter.avg,
                 'R': images.size(2),
                 'lr': new_lr,
                 'loss_type': loss_type,
@@ -187,7 +188,7 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
             })
             t.update(1)
             end = time.time()
-    return losses.avg.item(), psnr_averagemeter.avg.item()
+    return losses.avg.item(), psnr_averagemeter.avg
 
 
 def train(run_manager, args, validate_func=None):
@@ -204,20 +205,20 @@ def train(run_manager, args, validate_func=None):
             # best_acc
             is_best = val_acc > run_manager.best_acc
             run_manager.best_acc = max(run_manager.best_acc, val_acc)
-            if run_manager.is_root:
-                val_log = 'Valid [{0}/{1}] loss={2:.3f}, top-1={3:.3f} ({4:.3f})'. \
-                    format(epoch + 1 - args.warmup_epochs, run_manager.run_config.n_epochs, val_loss, val_acc,
-                           run_manager.best_acc)
-                val_log += ', Train top-1 {top1:.3f}, Train loss {loss:.3f}\t'.format(top1=train_top1, loss=train_loss)
-                val_log += _val_log
-                run_manager.write_log(val_log, 'valid', should_print=False)
+            # if run_manager.is_root:
+            val_log = 'Valid [{0}/{1}] loss={2:.3f}, top-1={3:.3f} ({4:.3f})'. \
+                format(epoch + 1 - args.warmup_epochs, run_manager.run_config.n_epochs, val_loss, val_acc,
+                        run_manager.best_acc)
+            val_log += ', Train top-1 {top1:.3f}, Train loss {loss:.3f}\t'.format(top1=train_top1, loss=train_loss)
+            val_log += _val_log
+            run_manager.write_log(val_log, 'valid', should_print=False)
 
-                run_manager.save_model({
-                    'epoch': epoch,
-                    'best_acc': run_manager.best_acc,
-                    'optimizer': run_manager.optimizer.state_dict(),
-                    'state_dict': run_manager.net.state_dict(),
-                }, is_best=is_best)
+            run_manager.save_model({
+                'epoch': epoch,
+                'best_acc': run_manager.best_acc,
+                'optimizer': run_manager.optimizer.state_dict(),
+                'state_dict': run_manager.net.state_dict(),
+            }, is_best=is_best)
 
 
 def load_models(run_manager, dynamic_net, model_path=None):

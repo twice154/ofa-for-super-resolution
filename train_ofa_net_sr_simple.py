@@ -91,7 +91,7 @@ args.opt_type = 'adam'
 args.momentum = 0.9
 args.no_nesterov = False
 args.weight_decay = 3e-5
-args.label_smoothing = 0.1
+args.label_smoothing = 0.0
 args.no_decay_keys = 'bn#bias'
 args.fp16_allreduce = False
 
@@ -115,7 +115,7 @@ args.width_mult_list = '1.0'
 args.dy_conv_scaling_mode = 1
 args.independent_distributed_sampling = False
 
-args.kd_ratio = 1.0
+args.kd_ratio = 0.0
 args.kd_type = None
 
 args.num_gpus = 1
@@ -199,7 +199,7 @@ if __name__ == '__main__':
     #     args.path, net, run_config, compression, backward_steps=args.dynamic_batch_size, is_root=(hvd.rank() == 0)
     # )
     run_manager = SRRunManager(
-        args.path, net, run_config
+        args.path, net, run_config, num_gpus=args.num_gpus
     )
     # distributed_run_manager.save_config()
     run_manager.save_config()
@@ -225,7 +225,7 @@ if __name__ == '__main__':
             #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
             model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
             load_models(run_manager, run_manager.net, model_path=model_path)
-            run_manager.write_log('%.3f\t%.3f\t%.3f\t%s' %
+            run_manager.write_log('%.3f\t%.3f\t%s' %
                                               validate(run_manager, **validate_func_dict), 'valid')
         train(run_manager, args,
               lambda _run_manager, epoch, is_test: validate(_run_manager, epoch, is_test, **validate_func_dict))

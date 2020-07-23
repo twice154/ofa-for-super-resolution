@@ -53,8 +53,8 @@ def set_running_statistics(model, data_loader, distributed=False):
     
     with torch.no_grad():
         DynamicBatchNorm2d.SET_RUNNING_STATISTICS = True
-        for images, labels in data_loader:
-            images = images.to(get_net_device(forward_model))
+        for images in data_loader:
+            images = images['image'].to(get_net_device(forward_model))
             forward_model(images)
         DynamicBatchNorm2d.SET_RUNNING_STATISTICS = False
     

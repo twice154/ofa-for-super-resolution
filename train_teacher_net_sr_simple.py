@@ -203,7 +203,7 @@ if __name__ == '__main__':
     #     args.path, net, run_config, compression, backward_steps=args.dynamic_batch_size, is_root=(hvd.rank() == 0)
     # )
     run_manager = SRRunManager(
-        args.path, net, run_config
+        args.path, net, run_config, num_gpus=args.num_gpus
     )
     # distributed_run_manager.save_config()
     run_manager.save_config()
