@@ -75,7 +75,7 @@ args = parser.parse_args()
 #         args.depth_list = '2,3,4'
 # else:
 #     raise NotImplementedError
-args.path = 'exp/test'
+args.path = 'exp/sr_teacher_bn_mse'
 args.n_epochs = 500
 args.base_lr = 0.001  # Default (Worked Well): 0.001
 args.warmup_epochs = 5

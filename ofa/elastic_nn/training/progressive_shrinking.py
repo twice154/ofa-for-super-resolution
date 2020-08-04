@@ -368,6 +368,71 @@ def supporting_elastic_expand(train_func, run_manager, args, validate_func_dict)
         run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
 
 
+def supporting_elastic_pixelshuffle_depth(train_func, run_manager, args, validate_func_dict):
+    dynamic_net = run_manager.net
+    if isinstance(dynamic_net, nn.DataParallel):
+        dynamic_net = dynamic_net.module
+        
+    # load stage info
+    stage_info_path = os.path.join(run_manager.path, 'pixelshuffle_depth.stage')
+    try:
+        stage_info = json.load(open(stage_info_path))
+    except Exception:
+        stage_info = {'stage': 0}
+    
+    # load pretrained models
+    validate_func_dict['pixelshuffle_depth_list'] = sorted(dynamic_net.pixelshuffle_depth_list)
+
+    if args.phase == 1:
+        # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K357',
+        #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+        model_path = './exp/sr_teacher_bn_mse/checkpoint/model_best.pth.tar'
+        load_models(run_manager, dynamic_net, model_path=model_path)
+    else:
+        # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D34_E6_K357',
+        #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+        model_path = './exp/sr_teacher_bn_mse/checkpoint/model_best.pth.tar'
+        load_models(run_manager, dynamic_net, model_path=model_path)
+    # validate after loading weights
+    run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
+        
+    pixelshuffle_depth_stage_list = dynamic_net.pixelshuffle_depth_list.copy()
+    pixelshuffle_depth_stage_list.sort(reverse=True)
+    n_stages = len(pixelshuffle_depth_stage_list) - 1
+    start_stage = n_stages - 1
+
+    for current_stage in range(start_stage, n_stages):
+        run_manager.write_log(
+            '-' * 30 + 'Supporting Elastic Depth: %s -> %s' %
+            (pixelshuffle_depth_stage_list[:current_stage + 1], pixelshuffle_depth_stage_list[:current_stage + 2]) + '-' * 30, 'valid'
+        )
+        
+        # add depth list constraints
+        supported_pixelshuffle_depth = pixelshuffle_depth_stage_list[:current_stage + 2]
+        if len(set(dynamic_net.ks_list)) == 1 and len(set(dynamic_net.expand_ratio_list)) == 1:
+            validate_func_dict['pixelshuffle_depth_list'] = supported_pixelshuffle_depth
+        else:
+            validate_func_dict['pixelshuffle_depth_list'] = sorted({min(supported_pixelshuffle_depth), max(supported_pixelshuffle_depth)})
+        dynamic_net.set_constraint(supported_pixelshuffle_depth, constraint_type='pixelshuffle_depth')
+        
+        # train
+        train_func(
+            run_manager, args,
+            lambda _run_manager, epoch, is_test: validate(_run_manager, epoch, is_test, **validate_func_dict)
+        )
+
+        # next stage & reset
+        stage_info['stage'] += 1
+        run_manager.start_epoch = 0
+        run_manager.best_acc = 0.0
+
+        # save and validate
+        run_manager.save_model(model_name='pixelshuffle_depth_stage%d.pth.tar' % stage_info['stage'])
+        json.dump(stage_info, open(stage_info_path, 'w'), indent=4)
+        validate_func_dict['pixelshuffle_depth_list'] = sorted(dynamic_net.pixelshuffle_depth_list)
+        run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
+
+
 import math
 from PIL import Image
 import numpy as np

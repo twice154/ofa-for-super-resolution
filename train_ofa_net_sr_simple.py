@@ -14,7 +14,7 @@ from ofa.elastic_nn.modules.dynamic_op import DynamicSeparableConv2d
 from ofa.elastic_nn.networks import OFAMobileNetX4
 from ofa.imagenet_codebase.run_manager import Div2K_SetXXRunConfig
 from ofa.imagenet_codebase.run_manager.sr_run_manager import SRRunManager
-from ofa.imagenet_codebase.data_providers.base_provider import MyRandomResizedCrop
+from ofa.imagenet_codebase.data_providers.base_provider import MyRandomResizedCrop  # SR 할때는 안씀, 그냥 여기서 Parameter 초기화하는데 빼기 귀찮아서 냅둠
 from ofa.utils import download_url
 from ofa.elastic_nn.training.progressive_shrinking import load_models
 
@@ -79,10 +79,10 @@ elif args.task == 'expand':
         args.depth_list = '2,3,4'
         args.pixelshuffle_depth_list = '2'
 elif args.task == 'pixelshuffle_depth':
-    args.path = 'exp/normal2kernel'
-    args.dynamic_batch_size = 1
-    args.n_epochs = 120
-    args.base_lr = 3e-2
+    args.path = 'exp/sr_bn_mse_normal2pixelshuffle'
+    args.dynamic_batch_size = 1  # 뭔지 잘 모르겠는데, batch 한 번 로드해와서 샘플링을 여러개한다. 아마도 horovod에서 distributed training 할 때 쓰지않나 싶은데... Single Machine에서 할 때는 그냥 1주면 된다.
+    args.n_epochs = 200
+    args.base_lr = 0.001
     args.warmup_epochs = 5
     args.warmup_lr = -1
     args.ks_list = '7'
@@ -95,7 +95,7 @@ args.manual_seed = 0
 
 args.lr_schedule_type = 'cosine'
 
-args.base_batch_size = 16
+args.base_batch_size = 16  # Default (Worked Well): 16
 args.valid_size = None
 
 args.opt_type = 'adam'
@@ -243,18 +243,13 @@ if __name__ == '__main__':
               lambda _run_manager, epoch, is_test: validate(_run_manager, epoch, is_test, **validate_func_dict))
     elif args.task == 'depth':
         from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_depth
+        # 해당함수가서 init model path 조정해줘야함 필요할때마다
         supporting_elastic_depth(train, run_manager, args, validate_func_dict)
     elif args.task == 'expand':
         from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_expand
+        # 해당함수가서 init model path 조정해줘야함 필요할때마다
         supporting_elastic_expand(train, run_manager, args, validate_func_dict)
     elif args.task == 'pixelshuffle_depth':
-        validate_func_dict['pixelshuffle_depth_list'] = sorted(args.pixelshuffle_depth_list)
-        if run_manager.start_epoch == 0:
-            # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K7',
-            #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-            model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
-            load_models(run_manager, run_manager.net, model_path=model_path)
-            run_manager.write_log('%.3f\t%.3f\t%s' %
-                                              validate(run_manager, **validate_func_dict), 'valid')
-        train(run_manager, args,
-              lambda _run_manager, epoch, is_test: validate(_run_manager, epoch, is_test, **validate_func_dict))
+        from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_pixelshuffle_depth
+        # 해당함수가서 init model path 조정해줘야함 필요할때마다
+        supporting_elastic_pixelshuffle_depth(train, run_manager, args, validate_func_dict)

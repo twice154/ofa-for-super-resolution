@@ -347,9 +347,9 @@ class OFAMobileNetX4(MobileNetX4):
         elif constraint_type == 'kernel_size':
             self.__dict__['_ks_include_list'] = include_list.copy()
         elif constraint_type == 'width_mult':
-            self.__dict__['_widthMult_include_list'] = include_list.copy()
+            self.__dict__['_width_mult_include_list'] = include_list.copy()
         elif constraint_type == 'pixelshuffle_depth':
-            self.__dict__['_pixelshuffleDepth_include_list'] = include_list.copy()
+            self.__dict__['_pixelshuffle_depth_include_list'] = include_list.copy()
         else:
             raise NotImplementedError
 
@@ -357,8 +357,8 @@ class OFAMobileNetX4(MobileNetX4):
         self.__dict__['_depth_include_list'] = None
         self.__dict__['_expand_include_list'] = None
         self.__dict__['_ks_include_list'] = None
-        self.__dict__['_widthMult_include_list'] = None
-        self.__dict__['_pixelshuffleDepth_include_list'] = None
+        self.__dict__['_width_mult_include_list'] = None
+        self.__dict__['_pixelshuffle_depth_include_list'] = None
 
     def sample_active_subnet(self):
         # self.blocks, self.block_group_info 두 개만 shrinking에 포함되는 block들에 대한 정보를 가지고 있다 
@@ -368,8 +368,8 @@ class OFAMobileNetX4(MobileNetX4):
             else self.__dict__['_expand_include_list']
         depth_candidates = self.depth_list if self.__dict__.get('_depth_include_list', None) is None else \
             self.__dict__['_depth_include_list']
-        pixelshuffle_depth_candidates = self.pixelshuffle_depth_list if self.__dict__.get('_pixelshuffleDepth_include_list', None) is None else \
-            self.__dict__['_pixelshuffleDepth_include_list']
+        pixelshuffle_depth_candidates = self.pixelshuffle_depth_list if self.__dict__.get('_pixelshuffle_depth_include_list', None) is None else \
+            self.__dict__['_pixelshuffle_depth_include_list']
 
         # sample width_mult
         width_mult_setting = None
