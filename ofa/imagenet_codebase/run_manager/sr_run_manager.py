@@ -319,7 +319,11 @@ class SRRunManager:
 
     """ train and test """
 
-    def validate(self, epoch=0, is_test=True, run_str='', net=None, data_loader=None, no_logs=False):
+    def validate(self, epoch=0, is_test=True, run_str='', net=None, data_loader=None, no_logs=False, tensorboard_logging=False):
+        if tensorboard_logging:
+            from tensorboardX import SummaryWriter  # for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+            writer = SummaryWriter()  # for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+            
         if net is None:
             net = self.net
         if not isinstance(net, nn.DataParallel):
@@ -352,6 +356,9 @@ class SRRunManager:
                     loss = self.test_criterion(output, images)
                     # measure accuracy and record loss
                     psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
+                    
+                    if tensorboard_logging:
+                        writer.add_scalars('metric', {'psnr': psnr_current}, i)  # for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
 
                     losses.update(loss.item(), images.size(0))
                     # top1.update(acc1[0].item(), images.size(0))
@@ -365,6 +372,10 @@ class SRRunManager:
                         'img_size': images.size(2),
                     })
                     t.update(1)
+
+        if tensorboard_logging:
+            writer.close()  # for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+
         return losses.avg, psnr_averagemeter.avg
 
     # def validate_all_resolution(self, epoch=0, is_test=True, net=None):
