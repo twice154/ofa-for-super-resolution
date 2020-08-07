@@ -321,8 +321,8 @@ class SRRunManager:
 
     def validate(self, epoch=0, is_test=True, run_str='', net=None, data_loader=None, no_logs=False, tensorboard_logging=False):
         if tensorboard_logging:
-            from tensorboardX import SummaryWriter  # for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
-            writer = SummaryWriter()  # for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+            from tensorboardX import SummaryWriter  ######### for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+            writer = SummaryWriter('./runs/4x_large')  ######### 필요할 때마다 log위치 수정가능. for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
             
         if net is None:
             net = self.net
@@ -358,7 +358,7 @@ class SRRunManager:
                     psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
                     
                     if tensorboard_logging:
-                        writer.add_scalars('metric', {'psnr': psnr_current}, i)  # for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+                        writer.add_scalars('metric', {'psnr': psnr_current}, i)  ######### for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
 
                     losses.update(loss.item(), images.size(0))
                     # top1.update(acc1[0].item(), images.size(0))
@@ -374,7 +374,7 @@ class SRRunManager:
                     t.update(1)
 
         if tensorboard_logging:
-            writer.close()  # for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+            writer.close()  ######### for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
 
         return losses.avg, psnr_averagemeter.avg
 

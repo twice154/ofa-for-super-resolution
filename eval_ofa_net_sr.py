@@ -12,7 +12,7 @@ import torch
 
 from ofa.elastic_nn.modules.dynamic_op import DynamicSeparableConv2d
 from ofa.elastic_nn.networks import OFAMobileNetX4
-from ofa.imagenet_codebase.run_manager import Div2K_SetXXRunConfig
+from ofa.imagenet_codebase.run_manager import Oracle_VideoRunConfig
 from ofa.imagenet_codebase.run_manager.sr_run_manager import SRRunManager
 from ofa.imagenet_codebase.data_providers.base_provider import MyRandomResizedCrop  # SR 할때는 안씀, 그냥 여기서 Parameter 초기화하는데 빼기 귀찮아서 냅둠
 from ofa.utils import download_url
@@ -76,8 +76,8 @@ args = parser.parse_args()
 # else:
 #     raise NotImplementedError
 args.path = 'exp/sr_teacher_bn_mse_oracle'
-args.n_epochs = 100
-args.base_lr = 0.001  # Default (Worked Well): 0.001
+args.n_epochs = 10
+args.base_lr = 0.0001  # Default (Worked Well): 0.001
 args.warmup_epochs = 5
 args.warmup_lr = -1
 args.ks_list = '7'
@@ -100,8 +100,8 @@ args.no_decay_keys = 'bn#bias'
 args.fp16_allreduce = False
 
 args.model_init = 'he_fout'
-args.validation_frequency = 21
-args.print_frequency = 21
+args.validation_frequency = 101
+args.print_frequency = 101
 
 args.n_worker = 8
 args.resize_scale = 1.0
@@ -163,7 +163,7 @@ if __name__ == '__main__':
         args.warmup_lr = args.base_lr
     args.train_batch_size = args.base_batch_size
     args.test_batch_size = 1
-    run_config = Div2K_SetXXRunConfig(**args.__dict__)
+    run_config = Oracle_VideoRunConfig(**args.__dict__)
 
     # print run config information
     # if hvd.rank() == 0:
@@ -213,8 +213,9 @@ if __name__ == '__main__':
     # load teacher net weights
     # if args.kd_ratio > 0:
     #     load_models(distributed_run_manager, args.teacher_model, model_path=args.teacher_path)
-    model_path = './exp/sr_bn_mse_normal2pixelshuffle/checkpoint/pixelshuffle_depth_stage1.pth.tar'  # 이거도 매번 바꿔줘야한다.
-    load_models(run_manager, net, model_path=model_path)
+    model_path = './exp/sr_teacher_bn_mse/checkpoint/model_best.pth.tar'  # 이거도 매번 바꿔줘야한다.
+    load_models(run_manager, run_manager.net, model_path=model_path)
+    # run_manager.net.module.set_active_subnet(ks=7, e=3, d=2, pixel_d=1)
 
     # training
     # from ofa.elastic_nn.training.progressive_shrinking import validate, train
@@ -240,5 +241,8 @@ if __name__ == '__main__':
     # else:
     #     from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_expand
     #     supporting_elastic_expand(train, distributed_run_manager, args, validate_func_dict)
+
+    # valid before train
+    # run_manager.validate()
     # run_manager.train(args)
     run_manager.validate(tensorboard_logging=True)

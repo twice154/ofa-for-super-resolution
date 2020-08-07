@@ -81,7 +81,7 @@ class Oracle_VideoDataProvider(DataProvider):
                 )
             else:
                 self.train = train_loader_class(
-                    train_dataset, batch_size=train_batch_size, shuffle=False,
+                    train_dataset, batch_size=train_batch_size, shuffle=True,
                     num_workers=n_worker, pin_memory=True, drop_last=True,
                 )
             self.valid = None

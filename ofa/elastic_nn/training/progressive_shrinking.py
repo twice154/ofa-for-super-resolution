@@ -68,7 +68,7 @@ def validate(run_manager, epoch=0, is_test=True, image_size_list=None,
         run_manager.write_log('-' * 30 + ' Validate %s ' % name + '-' * 30, 'train', should_print=False)
         # run_manager.run_config.data_provider.assign_active_img_size(setting.pop('image_size'))
 
-        # Random Sampling과 Structured Sampling중에 주석 바꿔가면서 고르면 됨
+        ########## Random Sampling과 Structured Sampling중에 주석 바꿔가면서 고르면 됨
         # dynamic_net.sample_active_subnet()
         dynamic_net.set_active_subnet(**setting)
         
@@ -253,12 +253,12 @@ def supporting_elastic_depth(train_func, run_manager, args, validate_func_dict):
     if args.phase == 1:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     else:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D34_E6_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     # validate after loading weights
     run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
@@ -318,12 +318,12 @@ def supporting_elastic_expand(train_func, run_manager, args, validate_func_dict)
     if args.phase == 1:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D234_E6_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     else:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D234_E46_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     dynamic_net.re_organize_middle_weights()
     run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
@@ -386,15 +386,16 @@ def supporting_elastic_pixelshuffle_depth(train_func, run_manager, args, validat
     if args.phase == 1:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './exp/sr_teacher_bn_mse/checkpoint/model_best.pth.tar'
+        model_path = './exp/sr_bn_mse_normal2pixelshuffle/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     else:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D34_E6_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './exp/sr_teacher_bn_mse/checkpoint/model_best.pth.tar'
+        model_path = './exp/sr_bn_mse_normal2pixelshuffle/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     # validate after loading weights
     run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
+    exit()
         
     pixelshuffle_depth_stage_list = dynamic_net.pixelshuffle_depth_list.copy()
     pixelshuffle_depth_stage_list.sort(reverse=True)

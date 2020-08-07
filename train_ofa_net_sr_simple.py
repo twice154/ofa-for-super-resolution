@@ -79,7 +79,7 @@ elif args.task == 'expand':
         args.depth_list = '2,3,4'
         args.pixelshuffle_depth_list = '2'
 elif args.task == 'pixelshuffle_depth':
-    args.path = 'exp/sr_bn_mse_normal2pixelshuffle'
+    args.path = 'exp/test'
     args.dynamic_batch_size = 1  # 뭔지 잘 모르겠는데, batch 한 번 로드해와서 샘플링을 여러개한다. 아마도 horovod에서 distributed training 할 때 쓰지않나 싶은데... Single Machine에서 할 때는 그냥 1주면 된다.
     args.n_epochs = 200
     args.base_lr = 0.001
@@ -235,7 +235,7 @@ if __name__ == '__main__':
         if run_manager.start_epoch == 0:
             # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K7',
             #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-            model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar'
+            model_path = './exp/sr_bn_mse_normal2pixelshuffle/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
             load_models(run_manager, run_manager.net, model_path=model_path)
             run_manager.write_log('%.3f\t%.3f\t%s' %
                                               validate(run_manager, **validate_func_dict), 'valid')
