@@ -398,7 +398,15 @@ class SRRunManager:
 
     def train_one_epoch(self, args, epoch, warmup_epochs=0, warmup_lr=0):
         # switch to train mode
-        self.net.train()
+        self.net
+        ########## Code for freezing BN
+        for m in self.net.modules():
+            if isinstance(m, nn.BatchNorm2d):
+                ########## Use running mean/var
+                m.eval()
+                ########## BN weight/bias freeze
+                # m.weight.requires_grad = False
+                # m.bias.requires_grad = False
 
         nBatch = len(self.run_config.train_loader)
 

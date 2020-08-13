@@ -95,6 +95,14 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
     dynamic_net.train()
     # run_manager.run_config.train_loader.sampler.set_epoch(epoch)
     # MyRandomResizedCrop.EPOCH = epoch
+    ########## Code for freezing BN
+    for m in dynamic_net.modules():
+        if isinstance(m, nn.BatchNorm2d):
+            ########## Use running mean/var
+            m.eval()
+            ########## BN weight/bias freeze
+            # m.weight.requires_grad = False
+            # m.bias.requires_grad = False
 
     nBatch = len(run_manager.run_config.train_loader)
 
@@ -395,7 +403,6 @@ def supporting_elastic_pixelshuffle_depth(train_func, run_manager, args, validat
         load_models(run_manager, dynamic_net, model_path=model_path)
     # validate after loading weights
     run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
-    exit()
         
     pixelshuffle_depth_stage_list = dynamic_net.pixelshuffle_depth_list.copy()
     pixelshuffle_depth_stage_list.sort(reverse=True)

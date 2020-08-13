@@ -19,76 +19,83 @@ from ofa.utils import download_url
 from ofa.elastic_nn.training.progressive_shrinking import load_models
 
 parser = argparse.ArgumentParser()
-# parser.add_argument('--task', type=str, default='depth', choices=[
-#     'kernel', 'depth', 'expand',
-# ])
-# parser.add_argument('--phase', type=int, default=1, choices=[1, 2])
+parser.add_argument('--task', type=str, default='pixelshuffle_depth', choices=[
+    'kernel', 'depth', 'expand', 'pixelshuffle_depth'
+])
+parser.add_argument('--phase', type=int, default=2, choices=[1, 2])
 
 args = parser.parse_args()
-# if args.task == 'kernel':
-#     args.path = 'exp/normal2kernel'
-#     args.dynamic_batch_size = 1
-#     args.n_epochs = 120
-#     args.base_lr = 3e-2
-#     args.warmup_epochs = 5
-#     args.warmup_lr = -1
-#     args.ks_list = '3,5,7'
-#     args.expand_list = '6'
-#     args.depth_list = '4'
-# elif args.task == 'depth':
-#     args.path = 'exp/kernel2kernel_depth/phase%d' % args.phase
-#     args.dynamic_batch_size = 2
-#     if args.phase == 1:
-#         args.n_epochs = 25
-#         args.base_lr = 2.5e-3
-#         args.warmup_epochs = 0
-#         args.warmup_lr = -1
-#         args.ks_list = '3,5,7'
-#         args.expand_list = '6'
-#         args.depth_list = '3,4'
-#     else:
-#         args.n_epochs = 120
-#         args.base_lr = 7.5e-3
-#         args.warmup_epochs = 5
-#         args.warmup_lr = -1
-#         args.ks_list = '3,5,7'
-#         args.expand_list = '6'
-#         args.depth_list = '2,3,4'
-# elif args.task == 'expand':
-#     args.path = 'exp/kernel_depth2kernel_depth_width/phase%d' % args.phase
-#     args.dynamic_batch_size = 4
-#     if args.phase == 1:
-#         args.n_epochs = 25
-#         args.base_lr = 2.5e-3
-#         args.warmup_epochs = 0
-#         args.warmup_lr = -1
-#         args.ks_list = '3,5,7'
-#         args.expand_list = '4,6'
-#         args.depth_list = '2,3,4'
-#     else:
-#         args.n_epochs = 120
-#         args.base_lr = 7.5e-3
-#         args.warmup_epochs = 5
-#         args.warmup_lr = -1
-#         args.ks_list = '3,5,7'
-#         args.expand_list = '3,4,6'
-#         args.depth_list = '2,3,4'
-# else:
-#     raise NotImplementedError
-args.path = 'exp/sr_teacher_bn_mse_oracle'
-args.n_epochs = 10
-args.base_lr = 0.0001  # Default (Worked Well): 0.001
-args.warmup_epochs = 5
-args.warmup_lr = -1
-args.ks_list = '7'
-args.expand_list = '6'
-args.depth_list = '4'
-args.pixelshuffle_depth_list = '2'
+if args.task == 'kernel':
+    args.path = 'exp/normal2kernel'
+    args.dynamic_batch_size = 1
+    args.n_epochs = 120
+    args.base_lr = 3e-2
+    args.warmup_epochs = 5
+    args.warmup_lr = -1
+    args.ks_list = '3,5,7'
+    args.expand_list = '6'
+    args.depth_list = '4'
+    args.pixelshuffle_depth_list = '2'
+elif args.task == 'depth':
+    args.path = 'exp/kernel2kernel_depth/phase%d' % args.phase
+    args.dynamic_batch_size = 2
+    if args.phase == 1:
+        args.n_epochs = 25
+        args.base_lr = 2.5e-3
+        args.warmup_epochs = 0
+        args.warmup_lr = -1
+        args.ks_list = '3,5,7'
+        args.expand_list = '6'
+        args.depth_list = '3,4'
+        args.pixelshuffle_depth_list = '2'
+    else:
+        args.n_epochs = 120
+        args.base_lr = 7.5e-3
+        args.warmup_epochs = 5
+        args.warmup_lr = -1
+        args.ks_list = '3,5,7'
+        args.expand_list = '6'
+        args.depth_list = '2,3,4'
+        args.pixelshuffle_depth_list = '2'
+elif args.task == 'expand':
+    args.path = 'exp/kernel_depth2kernel_depth_width/phase%d' % args.phase
+    args.dynamic_batch_size = 4
+    if args.phase == 1:
+        args.n_epochs = 25
+        args.base_lr = 2.5e-3
+        args.warmup_epochs = 0
+        args.warmup_lr = -1
+        args.ks_list = '3,5,7'
+        args.expand_list = '4,6'
+        args.depth_list = '2,3,4'
+        args.pixelshuffle_depth_list = '2'
+    else:
+        args.n_epochs = 120
+        args.base_lr = 7.5e-3
+        args.warmup_epochs = 5
+        args.warmup_lr = -1
+        args.ks_list = '3,5,7'
+        args.expand_list = '3,4,6'
+        args.depth_list = '2,3,4'
+        args.pixelshuffle_depth_list = '2'
+elif args.task == 'pixelshuffle_depth':
+    args.path = 'exp/sr_bn_mse_4xLarge2pixelShuffle2oracle'
+    args.dynamic_batch_size = 1  # 뭔지 잘 모르겠는데, batch 한 번 로드해와서 샘플링을 여러개한다. 아마도 horovod에서 distributed training 할 때 쓰지않나 싶은데... Single Machine에서 할 때는 그냥 1주면 된다.
+    args.n_epochs = 30
+    args.base_lr = 0.0001
+    args.warmup_epochs = 5
+    args.warmup_lr = -1
+    args.ks_list = '7'
+    args.expand_list = '6'
+    args.depth_list = '4'
+    args.pixelshuffle_depth_list = '1,2'
+else:
+    raise NotImplementedError
 args.manual_seed = 0
 
 args.lr_schedule_type = 'cosine'
 
-args.base_batch_size = 16  # Default (Worked Well): 16
+args.base_batch_size = 4  # Default (Worked Well): 16
 args.valid_size = None
 
 args.opt_type = 'adam'
@@ -100,13 +107,13 @@ args.no_decay_keys = 'bn#bias'
 args.fp16_allreduce = False
 
 args.model_init = 'he_fout'
-args.validation_frequency = 101
-args.print_frequency = 101
+args.validation_frequency = 1
+args.print_frequency = 10
 
 args.n_worker = 8
 args.resize_scale = 1.0
 args.distort_color = None
-args.image_size = '512'
+args.image_size = '720'
 args.continuous_size = True
 args.not_sync_distributed_image_size = False
 
@@ -122,7 +129,7 @@ args.independent_distributed_sampling = False
 args.kd_ratio = 0.0
 args.kd_type = None
 
-args.num_gpus = 8
+args.num_gpus = 4
 
 
 if __name__ == '__main__':
@@ -213,36 +220,36 @@ if __name__ == '__main__':
     # load teacher net weights
     # if args.kd_ratio > 0:
     #     load_models(distributed_run_manager, args.teacher_model, model_path=args.teacher_path)
-    model_path = './exp/sr_teacher_bn_mse/checkpoint/model_best.pth.tar'  # 이거도 매번 바꿔줘야한다.
-    load_models(run_manager, run_manager.net, model_path=model_path)
-    # run_manager.net.module.set_active_subnet(ks=7, e=3, d=2, pixel_d=1)
 
     # training
-    # from ofa.elastic_nn.training.progressive_shrinking import validate, train
+    from ofa.elastic_nn.training.progressive_shrinking import validate, train
 
-    # validate_func_dict = {'image_size_list': {224} if isinstance(args.image_size, int) else sorted({160, 224}),
-    #                       'width_mult_list': sorted({0, len(args.width_mult_list) - 1}),
-    #                       'ks_list': sorted({min(args.ks_list), max(args.ks_list)}),
-    #                       'expand_ratio_list': sorted({min(args.expand_list), max(args.expand_list)}),
-    #                       'depth_list': sorted({min(net.depth_list), max(net.depth_list)})}
-    # if args.task == 'kernel':
-    #     validate_func_dict['ks_list'] = sorted(args.ks_list)
-    #     if distributed_run_manager.start_epoch == 0:
-    #         model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K7',
-    #                                   model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-    #         load_models(distributed_run_manager, distributed_run_manager.net, model_path=model_path)
-    #         distributed_run_manager.write_log('%.3f\t%.3f\t%.3f\t%s' %
-    #                                           validate(distributed_run_manager, **validate_func_dict), 'valid')
-    #     train(distributed_run_manager, args,
-    #           lambda _run_manager, epoch, is_test: validate(_run_manager, epoch, is_test, **validate_func_dict))
-    # elif args.task == 'depth':
-    #     from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_depth
-    #     supporting_elastic_depth(train, distributed_run_manager, args, validate_func_dict)
-    # else:
-    #     from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_expand
-    #     supporting_elastic_expand(train, distributed_run_manager, args, validate_func_dict)
-
-    # valid before train
-    # run_manager.validate()
-    # run_manager.train(args)
-    run_manager.validate(tensorboard_logging=True)
+    validate_func_dict = {'image_size_list': {96} if isinstance(args.image_size, int) else sorted({160, 224}),
+                          'width_mult_list': sorted({0, len(args.width_mult_list) - 1}),
+                          'ks_list': sorted({min(args.ks_list), max(args.ks_list)}),
+                          'expand_ratio_list': sorted({min(args.expand_list), max(args.expand_list)}),
+                          'depth_list': sorted({min(net.depth_list), max(net.depth_list)}),
+                          'pixelshuffle_depth_list': sorted({min(net.pixelshuffle_depth_list), max(net.pixelshuffle_depth_list)}),}
+    if args.task == 'kernel':
+        validate_func_dict['ks_list'] = sorted(args.ks_list)
+        if run_manager.start_epoch == 0:
+            # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K7',
+            #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+            model_path = './exp/sr_bn_mse_normal2pixelshuffle/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
+            load_models(run_manager, run_manager.net, model_path=model_path)
+            run_manager.write_log('%.3f\t%.3f\t%s' %
+                                              validate(run_manager, **validate_func_dict), 'valid')
+        train(run_manager, args,
+              lambda _run_manager, epoch, is_test: validate(_run_manager, epoch, is_test, **validate_func_dict))
+    elif args.task == 'depth':
+        from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_depth
+        # 해당함수가서 init model path 조정해줘야함 필요할때마다
+        supporting_elastic_depth(train, run_manager, args, validate_func_dict)
+    elif args.task == 'expand':
+        from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_expand
+        # 해당함수가서 init model path 조정해줘야함 필요할때마다
+        supporting_elastic_expand(train, run_manager, args, validate_func_dict)
+    elif args.task == 'pixelshuffle_depth':
+        from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_pixelshuffle_depth
+        # 해당함수가서 init model path 조정해줘야함 필요할때마다
+        supporting_elastic_pixelshuffle_depth(train, run_manager, args, validate_func_dict)
