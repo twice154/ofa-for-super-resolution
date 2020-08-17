@@ -14,6 +14,8 @@ from ofa.imagenet_codebase.utils import make_divisible, int2list
 
 
 class OFAMobileNetX4(MobileNetX4):
+    ########## Downsampled Image 저장할라고 개쓰레기같은 Static변수 만들었음.
+    save_name_counter = 0  # validation forward시에 맨처음에 dummy image가 하나 들어가서 running check 하는 것 같은 작동을 보여주는데, 그래서 0으로 설정해줘서 처음 dummy image 저장한다.
 
     def __init__(self, bn_param=(0.1, 1e-5), dropout_rate=0.1, base_stage_width=None,
                  width_mult_list=1.0, ks_list=3, expand_ratio_list=6, depth_list=4, pixelshuffle_depth_list=2):
@@ -179,31 +181,39 @@ class OFAMobileNetX4(MobileNetX4):
     def name():
         return 'OFAMobileNetX4'
 
+
     def forward(self, x):
-        ########## encoder unshuffle
-        for stage_id, block_idx in enumerate(self.block_group_info[:1]):
-            depth = self.runtime_depth[stage_id]
-            active_idx = block_idx[:depth]
-            for idx in active_idx:
-                x = self.blocks[idx](x)
+        # ########## encoder unshuffle
+        # for stage_id, block_idx in enumerate(self.block_group_info[:1]):
+        #     depth = self.runtime_depth[stage_id]
+        #     active_idx = block_idx[:depth]
+        #     for idx in active_idx:
+        #         x = self.blocks[idx](x)
         
-        enc_big_skip = x
+        # enc_big_skip = x
 
-        ########## encoder inverted residual blocks
-        for stage_id, block_idx in enumerate(self.block_group_info[1:5]):
-            depth = self.runtime_depth[stage_id]
-            active_idx = block_idx[:depth]
-            for idx in active_idx:
-                x = self.blocks[idx](x)
+        # ########## encoder inverted residual blocks
+        # for stage_id, block_idx in enumerate(self.block_group_info[1:5]):
+        #     depth = self.runtime_depth[stage_id]
+        #     active_idx = block_idx[:depth]
+        #     for idx in active_idx:
+        #         x = self.blocks[idx](x)
 
-        ########## encoder final conv blocks
-        for i, enc_final_conv_block in enumerate(self.enc_final_conv_blocks):
-            x = enc_final_conv_block(x)
-            if i == 0:
-                x += enc_big_skip
+        # ########## encoder final conv blocks
+        # for i, enc_final_conv_block in enumerate(self.enc_final_conv_blocks):
+        #     x = enc_final_conv_block(x)
+        #     if i == 0:
+        #         x += enc_big_skip
 
         ########## decoder first conv block
         # x += down_image
+
+        # im = tensor2img_np(x)
+        # # print(OFAMobileNetX4.save_name_counter)
+        # im = Image.fromarray(im)
+        # im.save("/SSD/uvg-1080p/readysetgo_120fps_448center_4xLearned/%04d.png" % OFAMobileNetX4.save_name_counter)
+        # OFAMobileNetX4.save_name_counter += 1
+
         x = self.dec_first_conv_block(x)
 
         dec_big_skip = x
@@ -230,6 +240,12 @@ class OFAMobileNetX4(MobileNetX4):
 
         ########## decoder final output conv block
         x = self.dec_final_output_conv_block(x)
+
+        # im = tensor2img_np(x)
+        # # print(OFAMobileNetX4.save_name_counter)
+        # im = Image.fromarray(im)
+        # im.save("/SSD/uvg-1080p/readysetgo_120fps_448center_4xLearned/%04d.png" % OFAMobileNetX4.save_name_counter)
+        # OFAMobileNetX4.save_name_counter += 1
 
         return x
         
@@ -282,7 +298,19 @@ class OFAMobileNetX4(MobileNetX4):
 
     def load_weights_from_net(self, src_model_dict):
         model_dict = self.state_dict()
+        # for key, value in model_dict.items() :
+        #     print(key)
+        ########## 왜인지는 모르겠지만 module. 이 붙어있는 state dict 때문에...
+        module_flag = False
+        for key, value in src_model_dict.items():
+            if key.find("module.") != -1:
+                module_flag = True
+
         for key in src_model_dict:
+            ########## 왜인지는 모르겠지만 module. 이 붙어있는 state dict 때문에...
+            if key.find("module.") != -1:
+                key = key.replace("module.", '')
+
             if key in model_dict:
                 new_key = key
             elif '.bn.bn.' in key:
@@ -301,7 +329,11 @@ class OFAMobileNetX4(MobileNetX4):
             else:
                 raise ValueError(key)
             assert new_key in model_dict, '%s' % new_key
-            model_dict[new_key] = src_model_dict[key]
+            ########## 왜인지는 모르겠지만 module. 이 붙어있는 state dict 때문에...
+            if module_flag:
+                model_dict[new_key] = src_model_dict["module."+key]
+            else:
+                model_dict[new_key] = src_model_dict[key]
         self.load_state_dict(model_dict)
 
     """ set, sample and get active sub-networks """
@@ -509,3 +541,52 @@ class OFAMobileNetX4(MobileNetX4):
     def re_organize_middle_weights(self, expand_ratio_stage=0):
         for block in self.blocks[2:-2]:
             block.mobile_inverted_conv.re_organize_middle_weights(expand_ratio_stage)
+
+
+########## For visualize and save learned downsampling image
+import math
+from PIL import Image
+import numpy as np
+import torch
+from torchvision.utils import make_grid
+
+"""
+Converts a Tensor into an image Numpy array
+Input should be either in 4D(B,(3/1),H,W), 3D(C,H,W), or 2D(H,W)
+If input is in 4D, it is splited along the first dimension to provide grid view.
+Otherwise, the tensor is assume to be single image.
+Input type: float [-1, 1] (default)
+Output type: np.uint8 [0,255] (default)
+Output dim: 3D(H,W,C) (for 4D and 3D input) or 2D(H,W) (for 2D input)
+"""
+def tensor2img_np(tensor, out_type=np.uint8, min_max=(0,1)):
+    tensor = tensor.float().cpu().clamp_(*min_max) # Clamp is for on hard_tanh
+    tensor = (tensor - min_max[0]) / (min_max[1] - min_max[0])
+    n_dim = tensor.dim()
+    if n_dim == 4:
+        n_img = len(tensor)
+        img_np = make_grid(tensor, nrow=int(math.sqrt(n_img)), normalize=False).detach().numpy()
+        img_np = np.transpose(img_np, (1, 2, 0))
+    elif n_dim == 3:
+        img_np = tensor.numpy()
+        img_np = np.transpose(img_np, (1, 2, 0))
+    elif n_dim == 2:
+        img_np = tensor.numpy()
+    else:
+        raise TypeError('Only support 4D, 3D and 2D tensor. But receieved tensor with dimension = %d' % n_dim)
+    if out_type == np.uint8:
+        img_np = (img_np * 255.0).round() # This is important. Unlike matlab, numpy.unit8() WILL NOT round by default.
+    return img_np.astype(out_type)
+
+def rgb2gray(img):
+    in_img_type = img.dtype
+    img.astype(np.float64)
+    img_gray = np.dot(img[...,:3], [0.299, 0.587, 0.114]).round()
+    return img_gray.astype(in_img_type)
+
+def rgb2y(img):
+    assert(img.dtype == np.uint8)
+    in_img_type = img.dtype
+    img.astype(np.float64)
+    img_y = ((np.dot(img[...,:3], [65.481, 128.553, 24.966])) / 255.0 + 16.0).round()
+    return img_y.astype(in_img_type)

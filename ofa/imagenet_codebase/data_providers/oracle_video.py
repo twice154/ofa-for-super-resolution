@@ -16,7 +16,7 @@ from ofa.imagenet_codebase.data_providers.base_provider import DataProvider, MyR
 
 
 class Oracle_VideoDataProvider(DataProvider):
-    DEFAULT_PATH = '/SSD/kaist_paper_video_dataset'
+    DEFAULT_PATH = '/SSD/uvg-1080p'
     
     def __init__(self, save_path=None, train_batch_size=256, test_batch_size=512, valid_size=None, n_worker=32,
                  resize_scale=0.08, distort_color=None, image_size=32,
@@ -166,7 +166,8 @@ class Oracle_VideoDataProvider(DataProvider):
 
         train_transforms = [
             # resize_transform_class(image_size, scale=(self.resize_scale, 1.0)),
-            transforms.RandomCrop(image_size),  ########## 원래는 NineRandomCrop(image_size),
+            transforms.CenterCrop(image_size),
+            # transforms.RandomCrop(image_size),  ########## 원래는 NineRandomCrop(image_size),
             # transforms.RandomHorizontalFlip(),
             # transforms.RandomRotation(degrees=(-90, 90)),
         ]
@@ -185,7 +186,7 @@ class Oracle_VideoDataProvider(DataProvider):
             image_size = self.active_img_size
         return transforms.Compose([
             # transforms.Resize(int(math.ceil(image_size / 0.875))),
-            ModCrop(mod=4),
+            transforms.CenterCrop(image_size), # ModCrop(mod=4),
             # transforms.ToTensor(),
             # self.normalize,
         ])
@@ -348,6 +349,59 @@ class ModCrop(object):
 
 class NineRandomCrop(object):
     """NineRandomCrop the given PIL.Image. (4 Corner, 4 SideLine, 1 Center)
+    Args:
+        size (int): Crop size.
+    """
+
+    def __init__(self, size):
+        self.size = int(size)
+
+    @staticmethod
+    def get_params(img, size):
+        """Get parameters for ``crop`` for nine random crop.
+        Args:
+            img (PIL.Image): Image to be cropped.
+            size (int): Crop size.
+        Returns:
+            tuple: params (i, j, h, w) to be passed to ``crop`` for nine random crop.
+        """
+        w, h = img.size
+        
+        select = random.randint(1, 3)
+        # 1 2 3
+        # 4 5 6
+        # 7 8 9
+        if select == 1:
+            return 0, 0, size, size
+        elif select == 2:
+            return 0, int((w-size)/2), size, size
+        elif select == 3:
+            return 0, w-size, size, size
+        elif select == 4:
+            return int((h-size)/2), 0, size, size
+        elif select == 5:
+            return int((h-size)/2), int((w-size)/2), size, size
+        elif select == 6:
+            return int((h-size)/2), w-size, size, size
+        elif select == 7:
+            return h-size, 0, size, size
+        elif select == 8:
+            return h-size, int((w-size)/2), size, size
+        elif select == 9:
+            return h-size, w-size, size, size
+
+    def __call__(self, img):
+        """
+        Args:
+            img (PIL.Image): Image to be cropped.
+        Returns:
+            PIL.Image: Cropped image.
+        """
+        i, j, h, w = self.get_params(img, self.size)
+        return crop(img, i, j, h, w)
+
+class EntropyCrop(object):
+    """EntropyCrop the given PIL.Image.
     Args:
         size (int): Crop size.
     """

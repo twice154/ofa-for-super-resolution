@@ -215,7 +215,7 @@ if __name__ == '__main__':
     #     load_models(distributed_run_manager, args.teacher_model, model_path=args.teacher_path)
     model_path = './exp/sr_teacher_bn_mse/checkpoint/model_best.pth.tar'  # 이거도 매번 바꿔줘야한다.
     load_models(run_manager, run_manager.net, model_path=model_path)
-    # run_manager.net.module.set_active_subnet(ks=7, e=3, d=2, pixel_d=1)
+    run_manager.net.module.set_active_subnet(ks=7, e=6, d=4, pixel_d=2)
 
     # training
     # from ofa.elastic_nn.training.progressive_shrinking import validate, train
@@ -243,6 +243,6 @@ if __name__ == '__main__':
     #     supporting_elastic_expand(train, distributed_run_manager, args, validate_func_dict)
 
     # valid before train
-    # run_manager.validate()
+    run_manager.validate()
     run_manager.train(args)
     run_manager.validate(tensorboard_logging=True)

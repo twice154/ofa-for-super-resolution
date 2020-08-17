@@ -20,7 +20,7 @@ from ofa.elastic_nn.training.progressive_shrinking import load_models
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--task', type=str, default='pixelshuffle_depth', choices=[
-    'kernel', 'depth', 'expand', 'pixelshuffle_depth'
+    'kernel', 'depth', 'expand', 'pixelshuffle_depth', 'one_arch_overfit'
 ])
 parser.add_argument('--phase', type=int, default=2, choices=[1, 2])
 
@@ -79,15 +79,26 @@ elif args.task == 'expand':
         args.depth_list = '2,3,4'
         args.pixelshuffle_depth_list = '2'
 elif args.task == 'pixelshuffle_depth':
-    args.path = 'exp/sr_bn_mse_4xLarge2pixelShuffle2oracle'
+    args.path = 'exp/sr_bn_mse_4xLarge2pixelShuffle2readySetGo2codec300K'
     args.dynamic_batch_size = 1  # 뭔지 잘 모르겠는데, batch 한 번 로드해와서 샘플링을 여러개한다. 아마도 horovod에서 distributed training 할 때 쓰지않나 싶은데... Single Machine에서 할 때는 그냥 1주면 된다.
-    args.n_epochs = 30
-    args.base_lr = 0.0001
+    args.n_epochs = 5
+    args.base_lr = 0.00001
     args.warmup_epochs = 5
     args.warmup_lr = -1
     args.ks_list = '7'
     args.expand_list = '6'
     args.depth_list = '4'
+    args.pixelshuffle_depth_list = '1,2'
+elif args.task == 'one_arch_overfit':
+    args.path = 'exp/sr_bn_mse_4xLarge2pixelShuffle2jtbc2xSmall'
+    args.dynamic_batch_size = 1  # 뭔지 잘 모르겠는데, batch 한 번 로드해와서 샘플링을 여러개한다. 아마도 horovod에서 distributed training 할 때 쓰지않나 싶은데... Single Machine에서 할 때는 그냥 1주면 된다.
+    args.n_epochs = 5
+    args.base_lr = 0.00001
+    args.warmup_epochs = 5
+    args.warmup_lr = -1
+    args.ks_list = '7'
+    args.expand_list = '3,6'
+    args.depth_list = '2,4'
     args.pixelshuffle_depth_list = '1,2'
 else:
     raise NotImplementedError
@@ -113,7 +124,7 @@ args.print_frequency = 10
 args.n_worker = 8
 args.resize_scale = 1.0
 args.distort_color = None
-args.image_size = '720'
+args.image_size = '448'
 args.continuous_size = True
 args.not_sync_distributed_image_size = False
 
@@ -224,7 +235,7 @@ if __name__ == '__main__':
     # training
     from ofa.elastic_nn.training.progressive_shrinking import validate, train
 
-    validate_func_dict = {'image_size_list': {96} if isinstance(args.image_size, int) else sorted({160, 224}),
+    validate_func_dict = {'image_size_list': {args.image_size} if isinstance(args.image_size, int) else sorted({160, 224}),
                           'width_mult_list': sorted({0, len(args.width_mult_list) - 1}),
                           'ks_list': sorted({min(args.ks_list), max(args.ks_list)}),
                           'expand_ratio_list': sorted({min(args.expand_list), max(args.expand_list)}),
@@ -253,3 +264,13 @@ if __name__ == '__main__':
         from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_pixelshuffle_depth
         # 해당함수가서 init model path 조정해줘야함 필요할때마다
         supporting_elastic_pixelshuffle_depth(train, run_manager, args, validate_func_dict)
+    elif args.task == 'one_arch_overfit':
+        if run_manager.start_epoch == 0:
+            # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K7',
+            #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
+            model_path = './exp/sr_bn_mse_4xLarge2pixelShuffle/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
+            load_models(run_manager, run_manager.net, model_path=model_path)
+            run_manager.write_log('%.3f\t%.3f\t%s' %
+                                              validate(run_manager, **validate_func_dict), 'valid')
+        train(run_manager, args,
+              lambda _run_manager, epoch, is_test: validate(_run_manager, epoch, is_test, **validate_func_dict))

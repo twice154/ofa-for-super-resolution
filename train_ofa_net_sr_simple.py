@@ -79,10 +79,10 @@ elif args.task == 'expand':
         args.depth_list = '2,3,4'
         args.pixelshuffle_depth_list = '2'
 elif args.task == 'pixelshuffle_depth':
-    args.path = 'exp/test'
+    args.path = 'exp/sr_bn_mse_4xLarge2pixelShuffle'
     args.dynamic_batch_size = 1  # 뭔지 잘 모르겠는데, batch 한 번 로드해와서 샘플링을 여러개한다. 아마도 horovod에서 distributed training 할 때 쓰지않나 싶은데... Single Machine에서 할 때는 그냥 1주면 된다.
-    args.n_epochs = 200
-    args.base_lr = 0.001
+    args.n_epochs = 25
+    args.base_lr = 0.0001
     args.warmup_epochs = 5
     args.warmup_lr = -1
     args.ks_list = '7'
@@ -129,7 +129,7 @@ args.independent_distributed_sampling = False
 args.kd_ratio = 0.0
 args.kd_type = None
 
-args.num_gpus = 1
+args.num_gpus = 4
 
 
 if __name__ == '__main__':
