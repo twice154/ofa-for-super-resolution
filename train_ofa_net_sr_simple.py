@@ -235,7 +235,7 @@ if __name__ == '__main__':
         if run_manager.start_epoch == 0:
             # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K7',
             #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-            model_path = './exp/sr_bn_mse_normal2pixelshuffle/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
+            model_path = './exp/sr_bn_mse_normal2pixelshuffle/checkpoint/model_best.pth.tar' #################### 필요에 맞춰서 바꿔줘야함
             load_models(run_manager, run_manager.net, model_path=model_path)
             run_manager.write_log('%.3f\t%.3f\t%s' %
                                               validate(run_manager, **validate_func_dict), 'valid')

@@ -65,21 +65,21 @@ def validate(run_manager, epoch=0, is_test=True, image_size_list=None,
 
     valid_log = ''
     for setting, name in subnet_settings:
-        ########## Validation Architecture 정하는 부분인데, Single Architecture Overfitting 혹은 뭐 빠르게 테스트 해볼일 있으면 여기서 그냥 스킵하면됨
+        #################### Validation Architecture 정하는 부분인데, Single Architecture Overfitting 혹은 뭐 빠르게 테스트 해볼일 있으면 여기서 그냥 스킵하면됨
         # if name.find('PD1-W0-D2-E3-K7') == -1:
         #     continue
 
         run_manager.write_log('-' * 30 + ' Validate %s ' % name + '-' * 30, 'train', should_print=False)
         # run_manager.run_config.data_provider.assign_active_img_size(setting.pop('image_size'))
 
-        ########## Random Sampling과 Structured Sampling중에 주석 바꿔가면서 고르면 됨
+        #################### Random Sampling과 Structured Sampling중에 주석 바꿔가면서 고르면 됨
         # dynamic_net.sample_active_subnet()
         dynamic_net.set_active_subnet(**setting)
         
         
         run_manager.write_log(dynamic_net.module_str, 'train', should_print=False)
 
-        ########## Oracle Training 시에는 Batch Mean/Variance 현재 데이터로 업데이트하면 망함.
+        #################### Oracle Training 시에는 Batch Mean/Variance 현재 데이터로 업데이트하면 망함.
         # run_manager.reset_running_statistics(dynamic_net)
         loss, psnr = run_manager.validate(epoch=epoch, is_test=is_test, run_str=name, net=dynamic_net)
         losses_of_subnets.append(loss)
@@ -100,14 +100,14 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
     dynamic_net.train()
     # run_manager.run_config.train_loader.sampler.set_epoch(epoch)
     # MyRandomResizedCrop.EPOCH = epoch
-    ########## Code for freezing BN
-    for m in dynamic_net.modules():
-        if isinstance(m, nn.BatchNorm2d):
-            ########## Use running mean/var
-            m.eval()
-            ########## BN weight/bias freeze
-            # m.weight.requires_grad = False
-            # m.bias.requires_grad = False
+    #################### Code for freezing BN. Overfitting 할 때는 주석 해제하면됨.
+    # for m in dynamic_net.modules():
+    #     if isinstance(m, nn.BatchNorm2d):
+    #         ########## Use running mean/var
+    #         m.eval()
+    #         ########## BN weight/bias freeze
+    #         # m.weight.requires_grad = False
+    #         # m.bias.requires_grad = False
 
     nBatch = len(run_manager.run_config.train_loader)
 
@@ -123,6 +123,7 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
         end = time.time()
         for i, mini_batch in enumerate(run_manager.run_config.train_loader):
             images = mini_batch['image']
+            #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
             # down_images = mini_batch['down_image']
             data_time.update(time.time() - end)
             if epoch < warmup_epochs:
@@ -159,7 +160,7 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
                     subnet_seed = int('%d%.3d%.3d' % (epoch * nBatch + i, _, 0))
                 random.seed(subnet_seed)
 
-                ########## Random Sampling과 Structured Sampling중에 주석 바꿔가면서 고르면 됨. Single Architecture Overfitting을 위해서 여기 수정해주면 가능.
+                #################### Random Sampling과 Structured Sampling중에 주석 바꿔가면서 고르면 됨. Single Architecture Overfitting을 위해서 여기 수정해주면 가능.
                 subnet_settings = dynamic_net.sample_active_subnet()
                 # dynamic_net.set_active_subnet(ks=7, e=3, d=2, pixel_d=1)
 
@@ -167,7 +168,9 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
                     key, '%.1f' % subset_mean(val, 0) if isinstance(val, list) else val
                 ) for key, val in subnet_settings.items()]) + ' || '
 
+                #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
                 output = run_manager.net(images)
+
                 if args.kd_ratio == 0:
                     loss = run_manager.train_criterion(output, images)
                     loss_type = 'mse'
@@ -270,12 +273,12 @@ def supporting_elastic_depth(train_func, run_manager, args, validate_func_dict):
     if args.phase == 1:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' #################### 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     else:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D34_E6_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' #################### 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     # validate after loading weights
     run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
@@ -335,12 +338,12 @@ def supporting_elastic_expand(train_func, run_manager, args, validate_func_dict)
     if args.phase == 1:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D234_E6_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' #################### 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     else:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D234_E46_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
+        model_path = './exp/sr/mbx4_bn_mse/teacher/checkpoint/model_best.pth.tar' #################### 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     dynamic_net.re_organize_middle_weights()
     run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')
@@ -403,12 +406,12 @@ def supporting_elastic_pixelshuffle_depth(train_func, run_manager, args, validat
     if args.phase == 1:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './complete/sr_bn_mse_4xLarge2pixelShuffle2readySetGo/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
+        model_path = './complete/sr_bn_mse_4xLarge2pixelShuffle2readySetGo/checkpoint/model_best.pth.tar' #################### 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     else:
         # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D34_E6_K357',
         #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-        model_path = './complete/sr_bn_mse_4xLarge2pixelShuffle2readySetGo/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
+        model_path = './complete/sr_bn_mse_4xLarge2pixelShuffle2readySetGo/checkpoint/model_best.pth.tar' #################### 필요에 맞춰서 바꿔줘야함
         load_models(run_manager, dynamic_net, model_path=model_path)
     # validate after loading weights
     run_manager.write_log('%.3f\t%.3f\t%s' % validate(run_manager, **validate_func_dict), 'valid')

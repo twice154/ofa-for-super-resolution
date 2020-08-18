@@ -15,7 +15,7 @@ import torchvision.datasets as datasets
 from ofa.imagenet_codebase.data_providers.base_provider import DataProvider, MyRandomResizedCrop, MyDistributedSampler
 
 
-class Oracle_VideoDataProvider(DataProvider):
+class Codec_DecoderDataProvider(DataProvider):
     DEFAULT_PATH = '/SSD/uvg-1080p'
     
     def __init__(self, save_path=None, train_batch_size=256, test_batch_size=512, valid_size=None, n_worker=32,
@@ -103,7 +103,7 @@ class Oracle_VideoDataProvider(DataProvider):
     
     @staticmethod
     def name():
-        return 'oracle_video'
+        return 'codec_decoder'
     
     @property
     def data_shape(self):
@@ -124,11 +124,11 @@ class Oracle_VideoDataProvider(DataProvider):
         raise ValueError('unable to download %s' % self.name())
     
     def train_dataset(self, _transforms):
-        dataset = Oracle_VideoDataset(self.train_path, _transforms)
+        dataset = Codec_DecoderDataset(self.train_path, _transforms)
         return dataset
     
     def test_dataset(self, _transforms):
-        dataset = Oracle_VideoDataset(self.valid_path, _transforms)
+        dataset = Codec_DecoderDataset(self.valid_path, _transforms)
         return dataset
     
     @property
@@ -166,8 +166,8 @@ class Oracle_VideoDataProvider(DataProvider):
 
         train_transforms = [
             # resize_transform_class(image_size, scale=(self.resize_scale, 1.0)),
-            transforms.CenterCrop(image_size), #################### 나중에 꼭 EntropyCrop으로 하자
-            # transforms.RandomCrop(image_size),  
+            # transforms.CenterCrop(image_size), #################### 나중에 꼭 EntropyCrop으로 하자
+            # transforms.RandomCrop(image_size),
             # transforms.RandomHorizontalFlip(),
             # transforms.RandomRotation(degrees=(-90, 90)),
         ]
@@ -186,7 +186,7 @@ class Oracle_VideoDataProvider(DataProvider):
             image_size = self.active_img_size
         return transforms.Compose([
             # transforms.Resize(int(math.ceil(image_size / 0.875))),
-            transforms.CenterCrop(image_size), #################### 원래는 ModCrop(mod=4),
+            # transforms.CenterCrop(image_size), #################### 원래는 ModCrop(mod=4),
             # transforms.ToTensor(),
             # self.normalize,
         ])
@@ -269,7 +269,7 @@ def get_image_paths_recursive(dir, images):
 # import torch.utils.data as data
 # import data.transforms as transforms
 
-class Oracle_VideoDataset(torch.utils.data.Dataset):
+class Codec_DecoderDataset(torch.utils.data.Dataset):
     def __init__(self, root_dir, transform=None):
         """
         Args:
@@ -279,18 +279,30 @@ class Oracle_VideoDataset(torch.utils.data.Dataset):
         self.root_dir = root_dir
         self.transform = transform
 
-        self.paths = []
-        self.paths = sorted(get_image_paths_recursive(self.root_dir, self.paths))
-        self.size = len(self.paths)
+        # self.paths = []
+        # self.paths = sorted(get_image_paths_recursive(self.root_dir, self.paths))
+        # self.size = len(self.paths)
+        self.image_paths = []
+        self.label_paths = []
+        self.image_paths = sorted(get_image_paths_recursive(os.path.join(self.root_dir, 'image'), self.image_paths))
+        self.label_paths = sorted(get_image_paths_recursive(os.path.join(self.root_dir, 'label'), self.label_paths))
+        self.size = len(self.image_paths)
 
     def __len__(self):
         return self.size
 
     def __getitem__(self, index):
-        path = self.paths[index]
-        H_img = self.transform(Image.open(path).convert('RGB'))
-        L_img = get_transform_L()(H_img)
+        # path = self.paths[index]
+        # H_img = self.transform(Image.open(path).convert('RGB'))
+        # L_img = get_transform_L()(H_img)
+        # H_tensor = transforms.ToTensor()(H_img)
+        # L_tensor = transforms.ToTensor()(L_img)
+        label_path = self.label_paths[index]
+        H_img = Image.open(label_path).convert('RGB')
         H_tensor = transforms.ToTensor()(H_img)
+
+        image_path = self.image_paths[index]
+        L_img = Image.open(image_path).convert('RGB')
         L_tensor = transforms.ToTensor()(L_img)
         out_dict = {'image': H_tensor, 'down_image': L_tensor}
 

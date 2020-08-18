@@ -138,8 +138,8 @@ class Div2K_SetXXDataProvider(DataProvider):
     def valid_path(self):
         return os.path.join(self.save_path, 'val')
     
-    @property  # 이후에 dataset에 맞게 해줘야 할 수도 있긴한데, Train-Test 분포가 다르기도 하고 ImageNet 정도면 대표성을 띄고 있다고 생각하기 때문에 굳이 별도로 계산하지 않음
-    def normalize(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):  # Default: ImageNet Config
+    @property  #################### 이후에 dataset에 맞게 해줘야 할 수도 있긴한데, Train-Test 분포가 다르기도 하고 ImageNet 정도면 대표성을 띄고 있다고 생각하기 때문에 굳이 별도로 계산하지 않음
+    def normalize(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):  #################### Default: ImageNet Config
         return transforms.Normalize(mean=mean, std=std)
     
     def build_train_transform(self, image_size=None, print_log=True):

@@ -11,6 +11,7 @@ import random
 import torch
 
 from ofa.elastic_nn.modules.dynamic_op import DynamicSeparableConv2d
+#################### Model과 Dataset 필요에 맞춰서 실험마다 바꾸면 된다.
 from ofa.elastic_nn.networks import OFAMobileNetX4
 from ofa.imagenet_codebase.run_manager import Oracle_VideoRunConfig
 from ofa.imagenet_codebase.run_manager.sr_run_manager import SRRunManager
@@ -75,6 +76,7 @@ args = parser.parse_args()
 #         args.depth_list = '2,3,4'
 # else:
 #     raise NotImplementedError
+#################### Argument들 당연히 실험마다 맞춰서 바꿔줘야 하고
 args.path = 'exp/sr_teacher_bn_mse_oracle'
 args.n_epochs = 30
 args.base_lr = 0.0001  # Default (Worked Well): 0.001
@@ -213,9 +215,9 @@ if __name__ == '__main__':
     # load teacher net weights
     # if args.kd_ratio > 0:
     #     load_models(distributed_run_manager, args.teacher_model, model_path=args.teacher_path)
-    model_path = './complete/sr_bn_mse_4xLarge2pixelShuffle2readySetGo/checkpoint/model_best.pth.tar'  # 이거도 매번 바꿔줘야한다.
+    model_path = './complete/sr_bn_mse_4xLarge2pixelShuffle2readySetGo/checkpoint/model_best.pth.tar'  #################### Load할 Model Path 실험마다 맞춰서 바꿔주고
     load_models(run_manager, run_manager.net, model_path=model_path)
-    run_manager.net.module.set_active_subnet(ks=7, e=6, d=4, pixel_d=2)
+    run_manager.net.module.set_active_subnet(ks=7, e=6, d=4, pixel_d=2)  #################### Sub-network Sampling 맞춰서 바꿔주고
 
     # training
     # from ofa.elastic_nn.training.progressive_shrinking import validate, train
@@ -242,6 +244,7 @@ if __name__ == '__main__':
     #     from ofa.elastic_nn.training.progressive_shrinking import supporting_elastic_expand
     #     supporting_elastic_expand(train, distributed_run_manager, args, validate_func_dict)
 
+    #################### train or validate 적당히 주석 해제해주면 되고
     # valid before train
     run_manager.validate()
     # run_manager.train(args)

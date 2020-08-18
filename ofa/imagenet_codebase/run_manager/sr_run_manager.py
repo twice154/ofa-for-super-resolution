@@ -309,6 +309,7 @@ class SRRunManager:
 
     def save_config(self):
         """ dump run_config and net_config to the model_folder """
+        #################### 이부분이 아마 down-image guide 세팅으로 실험할 때, 에러나는 부분임.
         # net_save_path = os.path.join(self.path, 'net.config')
         # json.dump(self.network.config, open(net_save_path, 'w'), indent=4)
         # print('Network configs dump to %s' % net_save_path)
@@ -321,8 +322,8 @@ class SRRunManager:
 
     def validate(self, epoch=0, is_test=True, run_str='', net=None, data_loader=None, no_logs=False, tensorboard_logging=False):
         if tensorboard_logging:
-            from tensorboardX import SummaryWriter  ######### for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
-            writer = SummaryWriter('./runs/pretrain_4x_large')  ######### 필요할 때마다 log위치 수정가능. for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+            from tensorboardX import SummaryWriter  ################## for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+            writer = SummaryWriter('./runs/pretrain_4x_large')  ################## 필요할 때마다 log위치 수정가능. for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
             
         if net is None:
             net = self.net
@@ -347,10 +348,13 @@ class SRRunManager:
                       desc='Validate Epoch #{} {}'.format(epoch + 1, run_str), disable=no_logs) as t:
                 for i, mini_batch in enumerate(data_loader):
                     images = mini_batch['image']
+                    #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
                     # down_images = mini_batch['down_image']
                     images = images.to(self.device)
+                    #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
                     # down_images = down_images.to(self.device)
                     # compute output
+                    #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
                     output = net(images)
                     # output = net(down_images)
                     loss = self.test_criterion(output, images)
@@ -358,7 +362,7 @@ class SRRunManager:
                     psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
                     
                     if tensorboard_logging:
-                        writer.add_scalars('metric', {'psnr': psnr_current}, i)  ######### for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+                        writer.add_scalars('metric', {'psnr': psnr_current}, i)  ################## for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
 
                     losses.update(loss.item(), images.size(0))
                     # top1.update(acc1[0].item(), images.size(0))
@@ -374,7 +378,7 @@ class SRRunManager:
                     t.update(1)
 
         if tensorboard_logging:
-            writer.close()  ######### for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+            writer.close()  #################### for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
 
         return losses.avg, psnr_averagemeter.avg
 
@@ -399,14 +403,14 @@ class SRRunManager:
     def train_one_epoch(self, args, epoch, warmup_epochs=0, warmup_lr=0):
         # switch to train mode
         self.net
-        ########## Code for freezing BN
-        for m in self.net.modules():
-            if isinstance(m, nn.BatchNorm2d):
-                ########## Use running mean/var
-                m.eval()
-                ########## BN weight/bias freeze
-                # m.weight.requires_grad = False
-                # m.bias.requires_grad = False
+        #################### Code for freezing BN. Overfitting 할 때는 주석 해제하면됨.
+        # for m in self.net.modules():
+        #     if isinstance(m, nn.BatchNorm2d):
+        #         ########## Use running mean/var
+        #         m.eval()
+        #         ########## BN weight/bias freeze
+        #         # m.weight.requires_grad = False
+        #         # m.bias.requires_grad = False
 
         nBatch = len(self.run_config.train_loader)
 
@@ -421,6 +425,7 @@ class SRRunManager:
             end = time.time()
             for i, mini_batch in enumerate(self.run_config.train_loader):
                 images = mini_batch['image']
+                #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
                 # down_images = mini_batch['down_image']
                 data_time.update(time.time() - end)
                 if epoch < warmup_epochs:
@@ -431,6 +436,7 @@ class SRRunManager:
                     new_lr = self.run_config.adjust_learning_rate(self.optimizer, epoch - warmup_epochs, i, nBatch)
 
                 images = images.to(self.device)
+                #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
                 # down_images = down_images.to(self.device)
                 target = images
 
@@ -448,8 +454,9 @@ class SRRunManager:
                     loss2 = self.train_criterion(aux_outputs, labels)
                     loss = loss1 + 0.4 * loss2
                 else:
+                    #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
                     output = self.net(images)
-                    # output = self.net(images, down_images)
+                    # output = self.net(down_images)
                     loss = self.train_criterion(output, images)
 
                 if args.teacher_model is None:
@@ -496,12 +503,12 @@ class SRRunManager:
 
     def train(self, args, warmup_epoch=0, warmup_lr=0):
         for epoch in range(self.start_epoch, self.run_config.n_epochs + warmup_epoch):
-            train_loss, train_acc = self.train_one_epoch(args, epoch, warmup_epoch, warmup_lr)  # naming convention상 train_psnr이라고 해야하는데, 일일이 바꾸기 귀찮아서 그냥 train_acc이라고 그대로 사용
+            train_loss, train_acc = self.train_one_epoch(args, epoch, warmup_epoch, warmup_lr)  #################### naming convention상 train_psnr이라고 해야하는데, 일일이 바꾸기 귀찮아서 그냥 train_acc이라고 그대로 사용
 
             if (epoch + 1) % self.run_config.validation_frequency == 0:
-                val_loss, val_acc = self.validate(epoch=epoch, is_test=False)  # naming convention상 val_psnr이라고 해야하는데, 일일이 바꾸기 귀찮아서 그냥 val_acc이라고 그대로 사용
+                val_loss, val_acc = self.validate(epoch=epoch, is_test=False)  #################### naming convention상 val_psnr이라고 해야하는데, 일일이 바꾸기 귀찮아서 그냥 val_acc이라고 그대로 사용
 
-                is_best = np.mean(val_acc) > self.best_acc   # naming convention상 best_psnr이라고 해야하는데, 일일이 바꾸기 귀찮아서 그냥 best_acc이라고 그대로 사용
+                is_best = np.mean(val_acc) > self.best_acc   #################### naming convention상 best_psnr이라고 해야하는데, 일일이 바꾸기 귀찮아서 그냥 best_acc이라고 그대로 사용
                 self.best_acc = max(self.best_acc, np.mean(val_acc))
                 val_log = 'Valid [{0}/{1}]\tloss {2:.3f}\ttop-1 acc {3:.3f} ({4:.3f})'. \
                     format(epoch + 1 - warmup_epoch, self.run_config.n_epochs,

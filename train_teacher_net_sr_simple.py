@@ -11,6 +11,7 @@ import random
 import torch
 
 from ofa.elastic_nn.modules.dynamic_op import DynamicSeparableConv2d
+#################### Model과 Dataset 필요에 맞춰서 실험마다 바꾸면 된다.
 from ofa.elastic_nn.networks import OFAMobileNetX4
 from ofa.imagenet_codebase.run_manager import Div2K_SetXXRunConfig
 from ofa.imagenet_codebase.run_manager.sr_run_manager import SRRunManager

@@ -14,7 +14,7 @@ from ofa.imagenet_codebase.utils import make_divisible, int2list
 
 
 class OFAMobileNetX4(MobileNetX4):
-    ########## Downsampled Image 저장할라고 개쓰레기같은 Static변수 만들었음.
+    #################### Downsampled Image 저장할라고 개쓰레기같은 Static변수 만들었음. 그냥 Image 저장할 때 Image 이름 다르게할려고.
     save_name_counter = 0  # validation forward시에 맨처음에 dummy image가 하나 들어가서 running check 하는 것 같은 작동을 보여주는데, 그래서 0으로 설정해줘서 처음 dummy image 저장한다.
 
     def __init__(self, bn_param=(0.1, 1e-5), dropout_rate=0.1, base_stage_width=None,
@@ -183,36 +183,39 @@ class OFAMobileNetX4(MobileNetX4):
 
 
     def forward(self, x):
-        # ########## encoder unshuffle
-        # for stage_id, block_idx in enumerate(self.block_group_info[:1]):
-        #     depth = self.runtime_depth[stage_id]
-        #     active_idx = block_idx[:depth]
-        #     for idx in active_idx:
-        #         x = self.blocks[idx](x)
+        #################### SR Task 할 때는 여기서 다음 #x20 까지 주석처리하면 SR로 사용할 수 있다.
+        ########## encoder unshuffle
+        for stage_id, block_idx in enumerate(self.block_group_info[:1]):
+            depth = self.runtime_depth[stage_id]
+            active_idx = block_idx[:depth]
+            for idx in active_idx:
+                x = self.blocks[idx](x)
         
-        # enc_big_skip = x
+        enc_big_skip = x
 
-        # ########## encoder inverted residual blocks
-        # for stage_id, block_idx in enumerate(self.block_group_info[1:5]):
-        #     depth = self.runtime_depth[stage_id]
-        #     active_idx = block_idx[:depth]
-        #     for idx in active_idx:
-        #         x = self.blocks[idx](x)
+        ########## encoder inverted residual blocks
+        for stage_id, block_idx in enumerate(self.block_group_info[1:5]):
+            depth = self.runtime_depth[stage_id]
+            active_idx = block_idx[:depth]
+            for idx in active_idx:
+                x = self.blocks[idx](x)
 
-        # ########## encoder final conv blocks
-        # for i, enc_final_conv_block in enumerate(self.enc_final_conv_blocks):
-        #     x = enc_final_conv_block(x)
-        #     if i == 0:
-        #         x += enc_big_skip
+        ########## encoder final conv blocks
+        for i, enc_final_conv_block in enumerate(self.enc_final_conv_blocks):
+            x = enc_final_conv_block(x)
+            if i == 0:
+                x += enc_big_skip
 
-        ########## decoder first conv block
+        ######### decoder first conv block
         # x += down_image
 
+        #################### For saving downsampled image. 필요할 때만 주석 해제해서 사용하면 된다.
         # im = tensor2img_np(x)
         # # print(OFAMobileNetX4.save_name_counter)
         # im = Image.fromarray(im)
         # im.save("/SSD/uvg-1080p/readysetgo_120fps_448center_4xLearned/%04d.png" % OFAMobileNetX4.save_name_counter)
         # OFAMobileNetX4.save_name_counter += 1
+        #################### SR Task 할 때는 여기서 다음 #x20 까지 주석처리하면 SR로 사용할 수 있다.
 
         x = self.dec_first_conv_block(x)
 
@@ -241,6 +244,7 @@ class OFAMobileNetX4(MobileNetX4):
         ########## decoder final output conv block
         x = self.dec_final_output_conv_block(x)
 
+        #################### For saving downsampled image. 필요할 때만 주석 해제해서 사용하면 된다.
         # im = tensor2img_np(x)
         # # print(OFAMobileNetX4.save_name_counter)
         # im = Image.fromarray(im)

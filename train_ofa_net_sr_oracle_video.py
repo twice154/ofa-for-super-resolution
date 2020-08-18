@@ -11,8 +11,9 @@ import random
 import torch
 
 from ofa.elastic_nn.modules.dynamic_op import DynamicSeparableConv2d
+#################### Model과 Dataset 필요에 맞춰서 실험마다 바꾸면 된다.
 from ofa.elastic_nn.networks import OFAMobileNetX4
-from ofa.imagenet_codebase.run_manager import Oracle_VideoRunConfig
+from ofa.imagenet_codebase.run_manager import Codec_DecoderRunConfig
 from ofa.imagenet_codebase.run_manager.sr_run_manager import SRRunManager
 from ofa.imagenet_codebase.data_providers.base_provider import MyRandomResizedCrop  # SR 할때는 안씀, 그냥 여기서 Parameter 초기화하는데 빼기 귀찮아서 냅둠
 from ofa.utils import download_url
@@ -181,7 +182,7 @@ if __name__ == '__main__':
         args.warmup_lr = args.base_lr
     args.train_batch_size = args.base_batch_size
     args.test_batch_size = 1
-    run_config = Oracle_VideoRunConfig(**args.__dict__)
+    run_config = Codec_DecoderRunConfig(**args.__dict__)
 
     # print run config information
     # if hvd.rank() == 0:
@@ -246,7 +247,7 @@ if __name__ == '__main__':
         if run_manager.start_epoch == 0:
             # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K7',
             #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-            model_path = './exp/sr_bn_mse_normal2pixelshuffle/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
+            model_path = './exp/sr_bn_mse_normal2pixelshuffle/checkpoint/model_best.pth.tar' #################### 필요에 맞춰서 바꿔줘야함
             load_models(run_manager, run_manager.net, model_path=model_path)
             run_manager.write_log('%.3f\t%.3f\t%s' %
                                               validate(run_manager, **validate_func_dict), 'valid')
@@ -268,7 +269,7 @@ if __name__ == '__main__':
         if run_manager.start_epoch == 0:
             # model_path = download_url('https://hanlab.mit.edu/files/OnceForAll/ofa_checkpoints/ofa_D4_E6_K7',
             #                           model_dir='.torch/ofa_checkpoints/%d' % hvd.rank())
-            model_path = './exp/sr_bn_mse_4xLarge2pixelShuffle/checkpoint/model_best.pth.tar' ########## 필요에 맞춰서 바꿔줘야함
+            model_path = './exp/sr_bn_mse_4xLarge2pixelShuffle/checkpoint/model_best.pth.tar' #################### 필요에 맞춰서 바꿔줘야함
             load_models(run_manager, run_manager.net, model_path=model_path)
             run_manager.write_log('%.3f\t%.3f\t%s' %
                                               validate(run_manager, **validate_func_dict), 'valid')
