@@ -5,3 +5,4 @@
 from .ofa_proxyless import OFAProxylessNASNets
 from .ofa_mbv3 import OFAMobileNetV3
 from .ofa_mbx4 import OFAMobileNetX4
+from .ofa_mbs4 import OFAMobileNetS4

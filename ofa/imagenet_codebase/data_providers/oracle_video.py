@@ -289,10 +289,12 @@ class Oracle_VideoDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         path = self.paths[index]
         H_img = self.transform(Image.open(path).convert('RGB'))
-        L_img = get_transform_L()(H_img)
+        L2_img = get_transform_L(opt=2)(H_img)
+        L4_img = get_transform_L(opt=4)(H_img)
         H_tensor = transforms.ToTensor()(H_img)
-        L_tensor = transforms.ToTensor()(L_img)
-        out_dict = {'image': H_tensor, 'down_image': L_tensor}
+        L2_tensor = transforms.ToTensor()(L2_img)
+        L4_tensor = transforms.ToTensor()(L4_img)
+        out_dict = {'image': H_tensor, '2x_down_image': L2_tensor, '4x_down_image': L4_tensor}
 
         return out_dict
 

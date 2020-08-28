@@ -12,7 +12,7 @@ import torch
 
 from ofa.elastic_nn.modules.dynamic_op import DynamicSeparableConv2d
 #################### Model과 Dataset 필요에 맞춰서 실험마다 바꾸면 된다.
-from ofa.elastic_nn.networks import OFAMobileNetX4
+from ofa.elastic_nn.networks import OFAMobileNetS4
 from ofa.imagenet_codebase.run_manager import Div2K_SetXXRunConfig
 from ofa.imagenet_codebase.run_manager.sr_run_manager import SRRunManager
 from ofa.imagenet_codebase.data_providers.base_provider import MyRandomResizedCrop  # SR 할때는 안씀, 그냥 여기서 Parameter 초기화하는데 빼기 귀찮아서 냅둠
@@ -76,20 +76,20 @@ args = parser.parse_args()
 #         args.depth_list = '2,3,4'
 # else:
 #     raise NotImplementedError
-args.path = 'exp/decoder_sr_teacher_bn_mse'
+args.path = 'exp/sr_teacher_bn_mse'
 args.n_epochs = 500
-args.base_lr = 0.001  # Default (Worked Well): 0.001
+args.base_lr = 0.004  # Default (Worked Well): 0.001
 args.warmup_epochs = 5
 args.warmup_lr = -1
 args.ks_list = '7'
 args.expand_list = '6'
 args.depth_list = '4'
-args.pixelshuffle_depth_list = '2'
+args.pixelshuffle_depth_list = '1'
 args.manual_seed = 0
 
 args.lr_schedule_type = 'cosine'
 
-args.base_batch_size = 16  # Default (Worked Well): 16
+args.base_batch_size = 64  # Default (Worked Well): 16
 args.valid_size = None
 
 args.opt_type = 'adam'
@@ -123,7 +123,7 @@ args.independent_distributed_sampling = False
 args.kd_ratio = 0.0
 args.kd_type = None
 
-args.num_gpus = 1
+args.num_gpus = 4
 
 
 if __name__ == '__main__':
@@ -183,7 +183,7 @@ if __name__ == '__main__':
     args.depth_list = [int(d) for d in args.depth_list.split(',')]
     args.pixelshuffle_depth_list = [int(pixel_d) for pixel_d in args.pixelshuffle_depth_list.split(',')]
 
-    net = OFAMobileNetX4(
+    net = OFAMobileNetS4(
         bn_param=(args.bn_momentum, args.bn_eps),
         dropout_rate=args.dropout, base_stage_width=args.base_stage_width, width_mult_list=args.width_mult_list,
         ks_list=args.ks_list, expand_ratio_list=args.expand_list, depth_list=args.depth_list, pixelshuffle_depth_list=args.pixelshuffle_depth_list

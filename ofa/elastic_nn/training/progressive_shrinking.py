@@ -123,8 +123,9 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
         end = time.time()
         for i, mini_batch in enumerate(run_manager.run_config.train_loader):
             images = mini_batch['image']
-            #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
-            # down_images = mini_batch['down_image']
+            #################### 2x or 4x 고르는 부분.
+            x2_down_images = mini_batch['2x_down_image']
+            x4_down_images = mini_batch['4x_down_image']
             data_time.update(time.time() - end)
             if epoch < warmup_epochs:
                 new_lr = run_manager.run_config.warmup_adjust_learning_rate(
@@ -136,6 +137,9 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
                 )
 
             images = images.cuda()
+            #################### 2x or 4x 고르는 부분.
+            x2_down_images = x2_down_images.cuda()
+            x4_down_images = x4_down_images.cuda()
             target = images
 
             # soft target
@@ -168,8 +172,12 @@ def train_one_epoch(run_manager, args, epoch, warmup_epochs=0, warmup_lr=0):
                     key, '%.1f' % subset_mean(val, 0) if isinstance(val, list) else val
                 ) for key, val in subnet_settings.items()]) + ' || '
 
-                #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
-                output = run_manager.net(images)
+                #################### 2x or 4x 고르는 부분.
+                # output = run_manager.net(images)
+                if subnet_settings['pixel_d'][0] == 1:
+                    output = run_manager.net(x2_down_images)
+                elif subnet_settings['pixel_d'][0] == 2:
+                    output = run_manager.net(x4_down_images)
 
                 if args.kd_ratio == 0:
                     loss = run_manager.train_criterion(output, images)

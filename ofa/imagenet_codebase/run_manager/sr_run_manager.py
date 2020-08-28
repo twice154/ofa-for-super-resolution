@@ -309,7 +309,7 @@ class SRRunManager:
 
     def save_config(self):
         """ dump run_config and net_config to the model_folder """
-        #################### 이부분이 아마 down-image guide 세팅으로 실험할 때, 에러나는 부분임.
+        #################### 이부분이 아마 down-image guide 세팅으로 실험할 때, 에러나는 부분임. 그게 아니라 그냥 에러나니까 별거 아닌 것 같으니 주석하고 쓰자.
         # net_save_path = os.path.join(self.path, 'net.config')
         # json.dump(self.network.config, open(net_save_path, 'w'), indent=4)
         # print('Network configs dump to %s' % net_save_path)
@@ -348,15 +348,17 @@ class SRRunManager:
                       desc='Validate Epoch #{} {}'.format(epoch + 1, run_str), disable=no_logs) as t:
                 for i, mini_batch in enumerate(data_loader):
                     images = mini_batch['image']
-                    #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
-                    # down_images = mini_batch['down_image']
+                    #################### 2x or 4x 고르는 부분.
+                    x2_down_images = mini_batch['2x_down_image']
+                    # x4_down_images = mini_batch['4x_down_image']
                     images = images.to(self.device)
-                    #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
-                    # down_images = down_images.to(self.device)
+                    #################### 2x or 4x 고르는 부분.
+                    x2_down_images = x2_down_images.to(self.device)
+                    # x4_down_images = x4_down_images.to(self.device)
                     # compute output
-                    #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
-                    output = net(images)
-                    # output = net(down_images)
+                    #################### 2x or 4x 고르는 부분.
+                    output = net(x2_down_images)
+                    # output = net(x4_down_images)
                     loss = self.test_criterion(output, images)
                     # measure accuracy and record loss
                     psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
@@ -402,7 +404,7 @@ class SRRunManager:
 
     def train_one_epoch(self, args, epoch, warmup_epochs=0, warmup_lr=0):
         # switch to train mode
-        self.net
+        self.net.train()
         #################### Code for freezing BN. Overfitting 할 때는 주석 해제하면됨.
         # for m in self.net.modules():
         #     if isinstance(m, nn.BatchNorm2d):
@@ -425,8 +427,9 @@ class SRRunManager:
             end = time.time()
             for i, mini_batch in enumerate(self.run_config.train_loader):
                 images = mini_batch['image']
-                #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
-                # down_images = mini_batch['down_image']
+                #################### 2x or 4x 고르는 부분.
+                x2_down_images = mini_batch['2x_down_image']
+                # x4_down_images = mini_batch['4x_down_image']
                 data_time.update(time.time() - end)
                 if epoch < warmup_epochs:
                     new_lr = self.run_config.warmup_adjust_learning_rate(
@@ -436,8 +439,9 @@ class SRRunManager:
                     new_lr = self.run_config.adjust_learning_rate(self.optimizer, epoch - warmup_epochs, i, nBatch)
 
                 images = images.to(self.device)
-                #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
-                # down_images = down_images.to(self.device)
+                #################### 2x or 4x 고르는 부분.
+                x2_down_images = x2_down_images.to(self.device)
+                # x4_down_images = x4_down_images.to(self.device)
                 target = images
 
                 # soft target
@@ -454,9 +458,9 @@ class SRRunManager:
                     loss2 = self.train_criterion(aux_outputs, labels)
                     loss = loss1 + 0.4 * loss2
                 else:
-                    #################### SR Task 혹은 Bicubic downsample 더하는 실험할때
-                    output = self.net(images)
-                    # output = self.net(down_images)
+                    #################### 2x or 4x 고르는 부분.
+                    output = self.net(x2_down_images)
+                    # output = self.net(x4_down_images)
                     loss = self.train_criterion(output, images)
 
                 if args.teacher_model is None:
