@@ -78,18 +78,18 @@ args = parser.parse_args()
 #     raise NotImplementedError
 args.path = 'exp/sr_teacher_bn_mse'
 args.n_epochs = 500
-args.base_lr = 0.004  # Default (Worked Well): 0.001
+args.base_lr = 0.001  # Default (Worked Well): 0.001
 args.warmup_epochs = 5
 args.warmup_lr = -1
 args.ks_list = '7'
 args.expand_list = '6'
 args.depth_list = '4'
-args.pixelshuffle_depth_list = '1'
+args.pixelshuffle_depth_list = '2'
 args.manual_seed = 0
 
 args.lr_schedule_type = 'cosine'
 
-args.base_batch_size = 64  # Default (Worked Well): 16
+args.base_batch_size = 16  # Default (Worked Well): 16
 args.valid_size = None
 
 args.opt_type = 'adam'

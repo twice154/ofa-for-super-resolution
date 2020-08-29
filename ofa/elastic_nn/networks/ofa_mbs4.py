@@ -62,7 +62,7 @@ class OFAMobileNetS4(MobileNetS4):
             width_list.append(width)
 
         #################################################################################################### decoder first conv block
-        dec_first_conv_block = ConvLayer(3, max(width_list[0]), kernel_size=3, stride=stride_stages[0], act_func=act_stages[0], use_bn=True)
+        dec_first_conv_block = ConvLayer(3, max(width_list[0]), kernel_size=7, stride=stride_stages[0], act_func=act_stages[0], use_bn=True)
 
         #################################################################################################### decoder inverted residual blocks
         self.block_group_info = []
@@ -120,7 +120,7 @@ class OFAMobileNetS4(MobileNetS4):
             blocks.append(ConvLayer(max(feature_dim), max(output_channel), kernel_size=3, stride=s, act_func=act_stages[7], use_bn=True))
 
         #################################################################################################### decoder final output conv block
-        dec_final_output_conv_block = ConvLayer(max(feature_dim), max(width_list[8]), kernel_size=3, stride=stride_stages[8], act_func=act_stages[8], use_bn=True)
+        dec_final_output_conv_block = ConvLayer(max(feature_dim), max(width_list[8]), kernel_size=7, stride=stride_stages[8], act_func=act_stages[8], use_bn=True)
 
         ####################################################################################################
         # runtime_depth

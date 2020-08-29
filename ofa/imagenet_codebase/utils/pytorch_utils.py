@@ -136,6 +136,7 @@ def measure_net_latency(net, l_type='gpu8', fast=True, input_shape=(3, 224, 224)
     return total_time / n_sample, measured_latency
     
 
+#################### input shape 부분을 네트워크에 들어가는 Image Size에 맞춰서 바꾸어주면됨. FLOPs 계산시에 이거따라서 값이 바뀜.
 def get_net_info(net, input_shape=(3, 96, 96), measure_latency=None, print_info=True):
     net_info = {}
     if isinstance(net, nn.DataParallel):
@@ -146,6 +147,9 @@ def get_net_info(net, input_shape=(3, 96, 96), measure_latency=None, print_info=
     
     # flops
     net_info['flops'] = count_net_flops(net, [1] + list(input_shape))
+
+    # storage
+    net_info['storage'] = net_info['params'] * 32 / 8,388,608  #################### Weight가 32bit임을 가정하고 계산하는거임.
     
     # latencies
     # latency_types = [] if measure_latency is None else measure_latency.split('#')
@@ -160,6 +164,7 @@ def get_net_info(net, input_shape=(3, 96, 96), measure_latency=None, print_info=
         print(net)
         print('Total training params: %.2fM' % (net_info['params'] / 1e6))
         print('Total FLOPs: %.2fM' % (net_info['flops'] / 1e6))
+        print('Total weight storage: %.2fMB' % (net_info['storage']))
         # for l_type in latency_types:
         #     print('Estimated %s latency: %.3fms' % (l_type, net_info['%s latency' % l_type]['val']))
     

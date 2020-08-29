@@ -349,16 +349,16 @@ class SRRunManager:
                 for i, mini_batch in enumerate(data_loader):
                     images = mini_batch['image']
                     #################### 2x or 4x 고르는 부분.
-                    x2_down_images = mini_batch['2x_down_image']
-                    # x4_down_images = mini_batch['4x_down_image']
+                    # x2_down_images = mini_batch['2x_down_image']
+                    x4_down_images = mini_batch['4x_down_image']
                     images = images.to(self.device)
                     #################### 2x or 4x 고르는 부분.
-                    x2_down_images = x2_down_images.to(self.device)
-                    # x4_down_images = x4_down_images.to(self.device)
+                    # x2_down_images = x2_down_images.to(self.device)
+                    x4_down_images = x4_down_images.to(self.device)
                     # compute output
                     #################### 2x or 4x 고르는 부분.
-                    output = net(x2_down_images)
-                    # output = net(x4_down_images)
+                    # output = net(x2_down_images)
+                    output = net(x4_down_images)
                     loss = self.test_criterion(output, images)
                     # measure accuracy and record loss
                     psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
@@ -428,8 +428,8 @@ class SRRunManager:
             for i, mini_batch in enumerate(self.run_config.train_loader):
                 images = mini_batch['image']
                 #################### 2x or 4x 고르는 부분.
-                x2_down_images = mini_batch['2x_down_image']
-                # x4_down_images = mini_batch['4x_down_image']
+                # x2_down_images = mini_batch['2x_down_image']
+                x4_down_images = mini_batch['4x_down_image']
                 data_time.update(time.time() - end)
                 if epoch < warmup_epochs:
                     new_lr = self.run_config.warmup_adjust_learning_rate(
@@ -440,8 +440,8 @@ class SRRunManager:
 
                 images = images.to(self.device)
                 #################### 2x or 4x 고르는 부분.
-                x2_down_images = x2_down_images.to(self.device)
-                # x4_down_images = x4_down_images.to(self.device)
+                # x2_down_images = x2_down_images.to(self.device)
+                x4_down_images = x4_down_images.to(self.device)
                 target = images
 
                 # soft target
@@ -459,8 +459,8 @@ class SRRunManager:
                     loss = loss1 + 0.4 * loss2
                 else:
                     #################### 2x or 4x 고르는 부분.
-                    output = self.net(x2_down_images)
-                    # output = self.net(x4_down_images)
+                    # output = self.net(x2_down_images)
+                    output = self.net(x4_down_images)
                     loss = self.train_criterion(output, images)
 
                 if args.teacher_model is None:
