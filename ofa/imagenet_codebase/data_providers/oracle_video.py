@@ -16,7 +16,7 @@ from ofa.imagenet_codebase.data_providers.base_provider import DataProvider, MyR
 
 
 class Oracle_VideoDataProvider(DataProvider):
-    DEFAULT_PATH = '/SSD/uvg-1080p'
+    DEFAULT_PATH = '/SSD/kaist_paper_video_dataset'
     
     def __init__(self, save_path=None, train_batch_size=256, test_batch_size=512, valid_size=None, n_worker=32,
                  resize_scale=0.08, distort_color=None, image_size=32,
@@ -166,7 +166,7 @@ class Oracle_VideoDataProvider(DataProvider):
 
         train_transforms = [
             # resize_transform_class(image_size, scale=(self.resize_scale, 1.0)),
-            transforms.CenterCrop(image_size), #################### 나중에 꼭 EntropyCrop으로 하자
+            transforms.CenterCrop(image_size),  # ModCrop(mod=4),
             # transforms.RandomCrop(image_size),  
             # transforms.RandomHorizontalFlip(),
             # transforms.RandomRotation(degrees=(-90, 90)),
@@ -186,7 +186,7 @@ class Oracle_VideoDataProvider(DataProvider):
             image_size = self.active_img_size
         return transforms.Compose([
             # transforms.Resize(int(math.ceil(image_size / 0.875))),
-            transforms.CenterCrop(image_size), #################### 원래는 ModCrop(mod=4),
+            transforms.CenterCrop(image_size),  # ModCrop(mod=4),
             # transforms.ToTensor(),
             # self.normalize,
         ])
@@ -280,7 +280,9 @@ class Oracle_VideoDataset(torch.utils.data.Dataset):
         self.transform = transform
 
         self.paths = []
-        self.paths = sorted(get_image_paths_recursive(self.root_dir, self.paths))
+        #################### #만 있는 dataset을 오름차순으로 정렬하기 위함
+        self.paths = get_image_paths_recursive(self.root_dir, self.paths)
+        # self.paths = sorted(get_image_paths_recursive(self.root_dir, self.paths), key=lambda x: int(os.path.splitext(x)[0].split('/')[-1]))
         self.size = len(self.paths)
 
     def __len__(self):

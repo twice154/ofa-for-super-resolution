@@ -12,7 +12,7 @@ import torch
 
 from ofa.elastic_nn.modules.dynamic_op import DynamicSeparableConv2d
 #################### Model과 Dataset 필요에 맞춰서 실험마다 바꾸면 된다.
-from ofa.elastic_nn.networks import OFAMobileNetX4
+from ofa.elastic_nn.networks import OFAMobileNetS4
 from ofa.imagenet_codebase.run_manager import Oracle_VideoRunConfig
 from ofa.imagenet_codebase.run_manager.sr_run_manager import SRRunManager
 from ofa.imagenet_codebase.data_providers.base_provider import MyRandomResizedCrop  # SR 할때는 안씀, 그냥 여기서 Parameter 초기화하는데 빼기 귀찮아서 냅둠
@@ -77,7 +77,7 @@ args = parser.parse_args()
 # else:
 #     raise NotImplementedError
 #################### Argument들 당연히 실험마다 맞춰서 바꿔줘야 하고
-args.path = 'exp/sr_teacher_bn_mse_oracle'
+args.path = 'exp/test'
 args.n_epochs = 30
 args.base_lr = 0.0001  # Default (Worked Well): 0.001
 args.warmup_epochs = 5
@@ -108,7 +108,7 @@ args.print_frequency = 101
 args.n_worker = 8
 args.resize_scale = 1.0
 args.distort_color = None
-args.image_size = '448'
+args.image_size = '720'
 args.continuous_size = True
 args.not_sync_distributed_image_size = False
 
@@ -184,7 +184,7 @@ if __name__ == '__main__':
     args.depth_list = [int(d) for d in args.depth_list.split(',')]
     args.pixelshuffle_depth_list = [int(pixel_d) for pixel_d in args.pixelshuffle_depth_list.split(',')]
 
-    net = OFAMobileNetX4(
+    net = OFAMobileNetS4(
         bn_param=(args.bn_momentum, args.bn_eps),
         dropout_rate=args.dropout, base_stage_width=args.base_stage_width, width_mult_list=args.width_mult_list,
         ks_list=args.ks_list, expand_ratio_list=args.expand_list, depth_list=args.depth_list, pixelshuffle_depth_list=args.pixelshuffle_depth_list
@@ -215,9 +215,9 @@ if __name__ == '__main__':
     # load teacher net weights
     # if args.kd_ratio > 0:
     #     load_models(distributed_run_manager, args.teacher_model, model_path=args.teacher_path)
-    model_path = './complete/sr_bn_mse_4xLarge2pixelShuffle2readySetGo/checkpoint/model_best.pth.tar'  #################### Load할 Model Path 실험마다 맞춰서 바꿔주고
+    model_path = './complete/sr_teacher_bn_mse/checkpoint/model_best.pth.tar'  #################### Load할 Model Path 실험마다 맞춰서 바꿔주고
     load_models(run_manager, run_manager.net, model_path=model_path)
-    run_manager.net.module.set_active_subnet(ks=7, e=6, d=4, pixel_d=2)  #################### Sub-network Sampling 맞춰서 바꿔주고
+    run_manager.net.module.set_active_subnet(ks=7, e=6, d=2, pixel_d=2)  #################### Sub-network Sampling 맞춰서 바꿔주고
 
     # training
     # from ofa.elastic_nn.training.progressive_shrinking import validate, train
@@ -246,6 +246,6 @@ if __name__ == '__main__':
 
     #################### train or validate 적당히 주석 해제해주면 되고
     # valid before train
-    run_manager.validate()
+    # run_manager.validate()
     # run_manager.train(args)
     # run_manager.validate(tensorboard_logging=True)

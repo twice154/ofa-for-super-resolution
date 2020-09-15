@@ -135,7 +135,7 @@ class RunConfig:
 
 class SRRunManager:
 
-    def __init__(self, path, net, run_config: RunConfig, init=True, measure_latency=None, no_gpu=False, mix_prec=None, num_gpus=None):
+    def __init__(self, path, net, run_config: RunConfig, init=True, measure_latency=None, no_gpu=False, mix_prec=None, num_gpus=None, args=None):
         self.path = path
         self.net = net
         self.run_config = run_config
@@ -158,7 +158,8 @@ class SRRunManager:
             self.network.init_model(run_config.model_init)
 
         # net info
-        net_info = get_net_info(self.net, self.run_config.data_provider.data_shape, measure_latency, True)
+        net_info = get_net_info(self.net, self.run_config.data_provider.data_shape, measure_latency, True, args)
+        exit()
         with open('%s/net_info.txt' % self.path, 'w') as fout:
             fout.write(json.dumps(net_info, indent=4) + '\n')
             try:
@@ -323,7 +324,7 @@ class SRRunManager:
     def validate(self, epoch=0, is_test=True, run_str='', net=None, data_loader=None, no_logs=False, tensorboard_logging=False):
         if tensorboard_logging:
             from tensorboardX import SummaryWriter  ################## for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
-            writer = SummaryWriter('./runs/pretrain_4x_large')  ################## 필요할 때마다 log위치 수정가능. for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
+            writer = SummaryWriter('./runs/sr_teacher_bn_mse_bolt')  ################## 필요할 때마다 log위치 수정가능. for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
             
         if net is None:
             net = self.net
@@ -406,13 +407,13 @@ class SRRunManager:
         # switch to train mode
         self.net.train()
         #################### Code for freezing BN. Overfitting 할 때는 주석 해제하면됨.
-        # for m in self.net.modules():
-        #     if isinstance(m, nn.BatchNorm2d):
-        #         ########## Use running mean/var
-        #         m.eval()
-        #         ########## BN weight/bias freeze
-        #         # m.weight.requires_grad = False
-        #         # m.bias.requires_grad = False
+        for m in self.net.modules():
+            if isinstance(m, nn.BatchNorm2d):
+                ########## Use running mean/var
+                m.eval()
+                ########## BN weight/bias freeze
+                # m.weight.requires_grad = False
+                # m.bias.requires_grad = False
 
         nBatch = len(self.run_config.train_loader)
 
