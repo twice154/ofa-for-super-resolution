@@ -279,6 +279,7 @@ class Div2K_SetXXDataset(torch.utils.data.Dataset):
 
         self.paths = []
         self.paths = get_image_paths_recursive(self.root_dir, self.paths)
+        # self.paths = sorted(get_image_paths_recursive(self.root_dir, self.paths), key=lambda x: int(os.path.splitext(x)[0].split('/')[-1]))
         self.size = len(self.paths)
 
     def __len__(self):

@@ -222,7 +222,6 @@ def get_net_info(net, input_shape=(3, 96, 96), measure_latency=None, print_info=
         print('Total weight storage: %.2fMB' % (net_info['weight']))
         print('Total topology storage (slightly prediction error exist): %.2fMB' % (net_info['topology']))
         print('Total storage (slightly prediction error exist): %.2fMB' % (net_info['storage']))
-        exit()
         # for l_type in latency_types:
         #     print('Estimated %s latency: %.3fms' % (l_type, net_info['%s latency' % l_type]['val']))
     

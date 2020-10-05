@@ -281,8 +281,8 @@ class Oracle_VideoDataset(torch.utils.data.Dataset):
 
         self.paths = []
         #################### #만 있는 dataset을 오름차순으로 정렬하기 위함
-        self.paths = get_image_paths_recursive(self.root_dir, self.paths)
-        # self.paths = sorted(get_image_paths_recursive(self.root_dir, self.paths), key=lambda x: int(os.path.splitext(x)[0].split('/')[-1]))
+        # self.paths = get_image_paths_recursive(self.root_dir, self.paths)
+        self.paths = sorted(get_image_paths_recursive(self.root_dir, self.paths), key=lambda x: int(os.path.splitext(x)[0].split('/')[-1]))
         self.size = len(self.paths)
 
     def __len__(self):

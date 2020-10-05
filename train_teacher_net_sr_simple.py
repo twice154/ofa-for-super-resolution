@@ -76,15 +76,15 @@ args = parser.parse_args()
 #         args.depth_list = '2,3,4'
 # else:
 #     raise NotImplementedError
-args.path = 'exp/sr_teacher_bn_mse'
-args.n_epochs = 500
+args.path = 'exp/sr_x2_k5_e3_d2_bn_mse_t1v4'
+args.n_epochs = 100  # Default (Worked Well): 500
 args.base_lr = 0.001  # Default (Worked Well): 0.001
 args.warmup_epochs = 5
 args.warmup_lr = -1
-args.ks_list = '7'
-args.expand_list = '6'
-args.depth_list = '4'
-args.pixelshuffle_depth_list = '2'
+args.ks_list = '5'
+args.expand_list = '3'
+args.depth_list = '2'
+args.pixelshuffle_depth_list = '1'
 args.manual_seed = 0
 
 args.lr_schedule_type = 'cosine'
@@ -101,7 +101,7 @@ args.no_decay_keys = 'bn#bias'
 args.fp16_allreduce = False
 
 args.model_init = 'he_fout'
-args.validation_frequency = 1
+args.validation_frequency = 10
 args.print_frequency = 10
 
 args.n_worker = 8

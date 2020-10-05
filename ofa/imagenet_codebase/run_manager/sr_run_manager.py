@@ -159,7 +159,6 @@ class SRRunManager:
 
         # net info
         net_info = get_net_info(self.net, self.run_config.data_provider.data_shape, measure_latency, True, args)
-        exit()
         with open('%s/net_info.txt' % self.path, 'w') as fout:
             fout.write(json.dumps(net_info, indent=4) + '\n')
             try:
@@ -350,19 +349,27 @@ class SRRunManager:
                 for i, mini_batch in enumerate(data_loader):
                     images = mini_batch['image']
                     #################### 2x or 4x 고르는 부분.
-                    # x2_down_images = mini_batch['2x_down_image']
-                    x4_down_images = mini_batch['4x_down_image']
+                    x2_down_images = mini_batch['2x_down_image']
+                    # x4_down_images = mini_batch['4x_down_image']
                     images = images.to(self.device)
                     #################### 2x or 4x 고르는 부분.
-                    # x2_down_images = x2_down_images.to(self.device)
-                    x4_down_images = x4_down_images.to(self.device)
+                    x2_down_images = x2_down_images.to(self.device)
+                    # x4_down_images = x4_down_images.to(self.device)
                     # compute output
                     #################### 2x or 4x 고르는 부분.
-                    # output = net(x2_down_images)
-                    output = net(x4_down_images)
+                    output = net(x2_down_images)
+                    # output = net(x4_down_images)
                     loss = self.test_criterion(output, images)
                     # measure accuracy and record loss
-                    psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))
+                    psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(images)))  # HR Comparison
+                    # import PIL  # LR Comparison
+                    # import torchvision.transforms as transforms  # LR Comparison
+                    # output = output.cpu().data[0, :, :, :]  # LR Comparison
+                    # output = transforms.ToPILImage()(output)  # LR Comparison
+                    # output = output.resize((int(output.size[0]/2), int(output.size[1]/2)), resample=PIL.Image.BICUBIC)  # LR Comparison
+                    # output.save('zssr.png')  # LR Comparison FOR VALIDATE BICUBIC_DOWN
+                    # output = transforms.ToTensor()(output)  # LR Comparison
+                    # psnr_current = psnr(rgb2y(tensor2img_np(output)), rgb2y(tensor2img_np(x2_down_images)))  # LR Comparison
                     
                     if tensorboard_logging:
                         writer.add_scalars('metric', {'psnr': psnr_current}, i)  ################## for tensorboardX. Seuqential Video에 대해서 로그찍을 필요 없을때는 그냥 삭제하면됨.
@@ -429,8 +436,8 @@ class SRRunManager:
             for i, mini_batch in enumerate(self.run_config.train_loader):
                 images = mini_batch['image']
                 #################### 2x or 4x 고르는 부분.
-                # x2_down_images = mini_batch['2x_down_image']
-                x4_down_images = mini_batch['4x_down_image']
+                x2_down_images = mini_batch['2x_down_image']
+                # x4_down_images = mini_batch['4x_down_image']
                 data_time.update(time.time() - end)
                 if epoch < warmup_epochs:
                     new_lr = self.run_config.warmup_adjust_learning_rate(
@@ -441,8 +448,8 @@ class SRRunManager:
 
                 images = images.to(self.device)
                 #################### 2x or 4x 고르는 부분.
-                # x2_down_images = x2_down_images.to(self.device)
-                x4_down_images = x4_down_images.to(self.device)
+                x2_down_images = x2_down_images.to(self.device)
+                # x4_down_images = x4_down_images.to(self.device)
                 target = images
 
                 # soft target
@@ -460,8 +467,8 @@ class SRRunManager:
                     loss = loss1 + 0.4 * loss2
                 else:
                     #################### 2x or 4x 고르는 부분.
-                    # output = self.net(x2_down_images)
-                    output = self.net(x4_down_images)
+                    output = self.net(x2_down_images)
+                    # output = self.net(x4_down_images)
                     loss = self.train_criterion(output, images)
 
                 if args.teacher_model is None:
