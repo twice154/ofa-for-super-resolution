@@ -15,6 +15,8 @@ This repository contains image downscaling & super-resolution project code based
 }
 ```
 
-# Results of the project in terms of PSNR.
+# Image Downscaling & Super-Resolution
 
 Tricks I tried.
+
+#  Video Downscaling & Super-Resolution (Overfit NN per Video)
