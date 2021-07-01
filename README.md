@@ -43,6 +43,7 @@ The objectives of this proejct are
 
 # 2x/4x Image Downscaling & Super-Resolution in a Single Mobile Architecture
 
+![img](img_supernet.png)  
 Progressive Shrinking of
 * Kernel Size
 * Network Depth
