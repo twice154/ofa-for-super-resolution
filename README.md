@@ -3,7 +3,7 @@
 This repository contains image downscaling & super-resolution project code based on the paper ["Once-for-All: Train One Network and Specialize it for Efficient Deployment"](https://arxiv.org/abs/1908.09791) (ICLR 2020).
 
 The objective of this proejct
-* Find the best image downscaling & super-resolution neural network architecture on mobile devices.
+* Find the best image downscaling & super-resolution neural network architecture on mobile devices (Support 2x, 4x in a single architecture).
 * Find the best 
 
 ## License and Citation
@@ -47,4 +47,4 @@ Please
 
 #  Video Downscaling & Super-Resolution (Overfit NN per Video)
 
-Please 
+Please read ["Neural Adaptive Content-aware Internet Video Delivery"](https://www.usenix.org/system/files/osdi18-yeo.pdf) how it works.
