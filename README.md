@@ -45,7 +45,7 @@ The objectives of this proejct are
 
 #### Overview of Supernet Architecture
 ![img](img_supernet.png)  
-Progressive Shrinking of
+#### Progressive Shrinking of
 * Kernel Size
 * Network Depth
 * Expand Ratio
@@ -70,8 +70,8 @@ Progressive Shrinking of
 </tr>
 <tr>
 <td align="center">Set14-4xUP</td>
-<td align="center">30.88</td>
-<td align="center">30.3</td>
+<td align="center">31.01</td>
+<td align="center">30.30</td>
 </tr> 
 </tbody></table>
 
