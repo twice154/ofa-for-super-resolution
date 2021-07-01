@@ -3,7 +3,8 @@
 This repository contains image downscaling & super-resolution project code based on the paper ["Once-for-All: Train One Network and Specialize it for Efficient Deployment"](https://arxiv.org/abs/1908.09791) (ICLR 2020).
 
 The objectives of this proejct are
-* Find the best image downscaling & super-resolution neural network architecture on mobile devices (Support both 2x, 4x super-resolution in a single architecture).
+* Find the best image downscaling & super-resolution neural network architecture on mobile devices
+* Support both 2x, 4x super-resolution in a single architecture.
 
 ## License and Citation
 
