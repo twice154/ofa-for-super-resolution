@@ -63,8 +63,8 @@ Progressive Shrinking of
 <tbody>
 <tr>
 <td align="center">Set14-2xUP</td>
-<td align="center">35.61</td>
 <td align="center">39.15</td>
+<td align="center">35.61</td>
 </tr>
 <tr>
 <td align="center">Set14-4xUP</td>
