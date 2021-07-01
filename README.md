@@ -2,9 +2,9 @@
 
 This repository contains image downscaling & super-resolution project code based on the paper ["Once-for-All: Train One Network and Specialize it for Efficient Deployment"](https://arxiv.org/abs/1908.09791) (ICLR 2020).
 
-The objective of this proejct
-* Find the best image downscaling & super-resolution neural network architecture on mobile devices (Support 2x, 4x in a single architecture).
-* Find the best 
+The objectives of this proejct are
+* Find the best image downscaling & super-resolution neural network architecture on mobile devices (Support both 2x, 4x super-resolution in a single architecture).
+* Find the best video downscaling & super-resolution strategy to reduce data transmission.
 
 ## License and Citation
 
@@ -41,10 +41,37 @@ The objective of this proejct
 }
 ```
 
-# Image Downscaling & Super-Resolution
+# 2x/4x Image Downscaling & Super-Resolution in a Single Mobile Architecture
 
-Please
+Progressive Shrinking of
+* Kernel Size
+* Network Depth
+* Expand Ratio
+* Number of Pixelshuffle
+for finding the best architecture
 
-#  Video Downscaling & Super-Resolution (Overfit NN per Video)
+</ul>
+<table>
+<thead>
+<tr>
+<th align="center">Dataset</th>
+<th align="center">Ours</th>
+<th align="center">CAR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Set14-2xUP</td>
+<td align="center">35.61</td>
+<td align="center">39.15</td>
+</tr>
+<tr>
+<td align="center">Set14-4xUP</td>
+<td align="center">30.88</td>
+<td align="center">30.3</td>
+</tr> 
+</tbody></table>
+
+#  Video Downscaling & Super-Resolution to Reduce Data Transmission
 
 Please read ["Neural Adaptive Content-aware Internet Video Delivery"](https://www.usenix.org/system/files/osdi18-yeo.pdf) how it works.
