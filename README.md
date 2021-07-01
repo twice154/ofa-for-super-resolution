@@ -4,7 +4,7 @@ This repository contains image downscaling & super-resolution project code based
 
 The objective of this proejct
 * Find the best image downscaling & super-resolution neural network architecture on mobile devices.
-* 
+* Find the best 
 
 ## License and Citation
 
@@ -43,6 +43,8 @@ The objective of this proejct
 
 # Image Downscaling & Super-Resolution
 
-Tricks I tried.
+Please
 
 #  Video Downscaling & Super-Resolution (Overfit NN per Video)
+
+Please 
