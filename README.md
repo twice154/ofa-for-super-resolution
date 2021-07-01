@@ -4,7 +4,6 @@ This repository contains image downscaling & super-resolution project code based
 
 The objectives of this proejct are
 * Find the best image downscaling & super-resolution neural network architecture on mobile devices (Support both 2x, 4x super-resolution in a single architecture).
-* Find the best video downscaling & super-resolution strategy to reduce data transmission.
 
 ## License and Citation
 
@@ -27,17 +26,6 @@ The objectives of this proejct are
   booktitle={European Conference on Computer Vision},
   year={2018},
   url={https://openaccess.thecvf.com/content_ECCV_2018/papers/Heewon_Kim_Task-Aware_Image_Downscaling_ECCV_2018_paper.pdf}
-}
-```
-
-```BibTex
-@inproceedings{
-  yeo2018nas,
-  title={Neural Adaptive Content-aware Internet Video Delivery},
-  author={Hyunho Yeo and Youngmok Jung and Jaehong Kim and Jinwoo Shin and Dongsu Han},
-  booktitle={USENIX Symposium on Operating Systems Design and Implementation},
-  year={2018},
-  url={https://www.usenix.org/system/files/osdi18-yeo.pdf}
 }
 ```
 
@@ -74,7 +62,3 @@ The objectives of this proejct are
 <td align="center">30.30</td>
 </tr> 
 </tbody></table>
-
-#  Video Downscaling & Super-Resolution to Reduce Data Transmission
-
-Please read ["Neural Adaptive Content-aware Internet Video Delivery"](https://www.usenix.org/system/files/osdi18-yeo.pdf) how it works.
