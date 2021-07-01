@@ -48,8 +48,9 @@ Progressive Shrinking of
 * Network Depth
 * Expand Ratio
 * Number of Pixelshuffle
-for finding the best architecture
 
+### Comparison to CAR in terms of PSNR
+["CAR: Learned Image Downscaling for Upscaling using Content Adaptive Resampler"](https://arxiv.org/abs/1907.12904)
 </ul>
 <table>
 <thead>
